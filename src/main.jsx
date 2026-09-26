@@ -12,6 +12,7 @@ import autoTable from 'jspdf-autotable'
 import { getReport, listReports, login, reviewReport } from './supabase'
 import './styles.css'
 
+const asset = name => `${import.meta.env.BASE_URL}${name}`
 const money = n => `S/ ${Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const formatDate = s => {
   if (!s) return '—'
@@ -27,7 +28,7 @@ const statusMeta = {
   draft: ['En preparación','neutral'], submitted: ['Enviado para revisión','info'],
   approved: ['Aprobado','ok'], correction_requested: ['Requiere corrección','warn']
 }
-const supportLabel = e => e.support_type === 'receipt' ? 'Ver boleta' : e.support_type === 'declaration' ? 'Ver declaración' : e.support_type === 'receipt_declaration' ? 'Ver sustento' : 'Sin sustento'
+const supportLabel = e => e.support_note ? e.support_note : e.support_type === 'receipt' ? 'Ver boleta' : e.support_type === 'declaration' ? 'Ver declaración' : e.support_type === 'receipt_declaration' ? 'Ver sustento' : 'Sin sustento'
 
 function App(){
   const [pin,setPin] = useState(sessionStorage.getItem('apc_pin') || '')
@@ -78,7 +79,7 @@ function App(){
   if(!logged) return <Login pin={pin} setPin={setPin} onLogin={()=>doLogin()} loading={loading} error={error}/>
   return <div className="app-shell">
     <header className="topbar">
-      <div className="brand"><img src="/apc-logo.jpg"/><div><strong>APC Corporacion</strong><span>Reportes de transporte</span></div></div>
+      <div className="brand"><img src={asset('apc-logo.jpg')}/><div><strong>APC Corporacion</strong><span>Reportes de transporte</span></div></div>
       <div className="top-actions"><button className="icon-btn" onClick={()=>refreshReports()} title="Actualizar"><RefreshCw size={19}/></button><button className="ghost" onClick={logout}><LogOut size={17}/> Salir</button></div>
     </header>
     <main className="layout">
@@ -106,7 +107,7 @@ function App(){
 
 function Login({pin,setPin,onLogin,loading,error}){
   return <div className="login-page"><div className="login-card">
-    <img className="login-logo" src="/apc-logo.jpg"/><div className="login-icon"><ShieldCheck size={28}/></div>
+    <img className="login-logo" src={asset('apc-logo.jpg')}/><div className="login-icon"><ShieldCheck size={28}/></div>
     <h1>Reporte de transporte</h1><p>Acceso sencillo para revisar movimientos, boletas y declaraciones juradas.</p>
     <label>PIN de acceso</label><input autoFocus inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>e.key==='Enter'&&onLogin()} placeholder="Ingresa el PIN"/>
     {error&&<div className="field-error">{error}</div>}
@@ -120,21 +121,31 @@ function ReportView({bundle,onEvidence,note,setNote,reviewedBy,setReviewedBy,onR
   const status=statusMeta[report.status]||[report.status,'neutral']
   const period=report.period_end?`${longDate(report.period_start)} – ${longDate(report.period_end)}`:`Desde ${longDate(report.period_start)}`
   return <>
-    <section className="hero-card">
-      <div className="hero-top"><div><span className="eyebrow">Reporte actual</span><h1>{period}</h1><p>{report.owner_name} · DNI {report.owner_dni}</p></div><span className={`status ${status[1]}`}>{status[0]}</span></div>
-      <div className="summary-grid">
-        <div className="balance-card"><span>Saldo disponible</span><strong>{money(summary.balance)}</strong><small>Recibido menos gastos</small></div>
-        <div className="metric"><div className="metric-icon green"><WalletCards size={20}/></div><div><span>Recibido</span><strong>{money(summary.received)}</strong></div></div>
-        <div className="metric"><div className="metric-icon orange"><Route size={20}/></div><div><span>Gastado</span><strong>{money(summary.spent)}</strong></div></div>
-      </div>
-      <div className="download-row"><button className="primary" onClick={()=>downloadPdf(bundle)}><Download size={18}/> Descargar PDF</button><button className="secondary" onClick={()=>downloadExcel(bundle)}><FileSpreadsheet size={18}/> Descargar Excel</button></div>
-    </section>
+    <section className="report-sheet">
+      <div className="report-main-title">REPORTE DE TRANSPORTE · APC CORPORACION</div>
+      <div className="report-owner">{report.owner_name} · DNI {report.owner_dni} · {report.company_name} · RUC {report.company_ruc}</div>
+      <div className="report-period"><span>{period}</span><span className={`status ${status[1]}`}>{status[0]}</span></div>
 
-    <section className="panel">
-      <div className="panel-title"><div><span className="eyebrow">Detalle</span><h2>Movimientos</h2></div><span className="count">{entries.length}</span></div>
-      <div className="table-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th className="right">Monto</th><th>Sustento</th></tr></thead><tbody>
-        {entries.map(e=><tr key={e.id}><td data-label="Fecha">{formatDate(e.entry_date)}</td><td data-label="Tipo"><span className={`type-pill ${e.entry_type}`}>{e.entry_type==='credit'?'Crédito':'Gasto'}</span></td><td data-label="Detalle"><strong className="mobile-detail">{movementDetail(e)}</strong>{e.issue_time&&<span className="subline">Hora: {e.issue_time}</span>}</td><td data-label="Monto" className={`right amount ${e.entry_type}`}>{e.entry_type==='credit'?'+':'−'}{money(e.amount)}</td><td data-label="Sustento">{e.entry_type==='credit'?<span className="muted">—</span>:e.support_type==='none'?<span className="muted">Sin sustento</span>:<button className={`support-btn ${e.support_type.includes('declaration')?'declaration':''}`} onClick={()=>onEvidence(e)}><Eye size={16}/>{supportLabel(e)}</button>}</td></tr>)}
+      <div className="report-kpis">
+        <div className="kpi-label">TOTAL RECIBIDO</div><div className="kpi-value received">{money(summary.received)}</div>
+        <div className="kpi-label">TOTAL GASTADO</div><div className="kpi-value spent">{money(summary.spent)}</div>
+        <div className="kpi-label">SALDO</div><div className="kpi-value balance">{money(summary.balance)}</div>
+        <div className="kpi-label">MOVIMIENTOS</div><div className="kpi-value">{entries.length}</div>
+      </div>
+
+      <div className="report-section-title">MOVIMIENTOS</div>
+      <div className="table-wrap report-table"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th className="right">Monto</th><th>Sustento</th></tr></thead><tbody>
+        {entries.map(e=><tr key={e.id}>
+          <td data-label="Fecha">{formatDate(e.entry_date)}</td>
+          <td data-label="Tipo"><span className={`type-pill ${e.entry_type}`}>{e.entry_type==='credit'?'Crédito':'Gasto'}</span></td>
+          <td data-label="Detalle"><strong className="mobile-detail">{movementDetail(e)}</strong>{e.issue_time&&<span className="subline">Hora: {e.issue_time}</span>}</td>
+          <td data-label="Monto" className={`right amount ${e.entry_type}`}>{money(e.amount)}</td>
+          <td data-label="Sustento">{e.entry_type==='credit'?<span className="muted">—</span>:e.support_note?<span className="shown-badge"><CheckCircle2 size={15}/>{e.support_note}</span>:e.support_type==='none'?<span className="muted">Sin sustento</span>:<button className={`support-btn ${e.support_type.includes('declaration')?'declaration':''}`} onClick={()=>onEvidence(e)}><Eye size={16}/>{supportLabel(e)}</button>}</td>
+        </tr>)}
       </tbody></table></div>
+
+      <div className="report-final-row"><strong>RESUMEN</strong><span>Saldo final</span><b>{money(summary.balance)}</b></div>
+      <div className="download-row"><button className="primary" onClick={()=>downloadPdf(bundle)}><Download size={18}/> Descargar PDF</button><button className="secondary" onClick={()=>downloadExcel(bundle)}><FileSpreadsheet size={18}/> Descargar Excel</button></div>
     </section>
 
     <section className="panel review-panel">
@@ -183,19 +194,45 @@ function declarationText(e,r){
 }
 
 async function downloadPdf(bundle){
-  const {report,summary,entries=[]}=bundle; const doc=new jsPDF({unit:'mm',format:'a4'}); const W=210; let y=14
-  const navy=[23,50,77], red=[175,35,26], green=[25,133,111], orange=[230,126,34], gray=[245,247,250]
-  const header=()=>{doc.setFillColor(...navy);doc.roundedRect(12,12,186,20,2,2,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('REPORTE DE TRANSPORTE',18,22);doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.text(`${report.company_name} · RUC ${report.company_ruc}`,18,28);doc.setTextColor(31,41,55);doc.setFontSize(9);doc.text(`${report.owner_name} · DNI ${report.owner_dni}`,12,39);y=45}
-  header();
-  const cards=[['SALDO',summary.balance,navy],['RECIBIDO',summary.received,green],['GASTADO',summary.spent,orange]];cards.forEach((c,i)=>{const x=12+i*63;doc.setFillColor(...gray);doc.roundedRect(x,y,59,20,2,2,'F');doc.setTextColor(...c[2]);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text(c[0],x+4,y+7);doc.setFontSize(13);doc.text(money(c[1]),x+4,y+15)});y+=27
-  doc.setFillColor(...red);doc.rect(12,y,186,9,'F');doc.setTextColor(255);doc.setFontSize(9);doc.text('MOVIMIENTOS',16,y+6);y+=11
-  autoTable(doc,{startY:y,margin:{left:12,right:12},head:[['Fecha','Tipo','Detalle','Monto','Sustento']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e),`${e.entry_type==='credit'?'+':'−'}${money(e.amount)}`,e.entry_type==='credit'?'—':supportLabel(e)]),styles:{fontSize:8,cellPadding:2.4,valign:'middle'},headStyles:{fillColor:red,textColor:255,fontStyle:'bold'},columnStyles:{3:{halign:'right'}},alternateRowStyles:{fillColor:[249,250,251]}})
-  for(const e of entries.filter(x=>x.entry_type==='expense'&&(x.receipt_image_base64||x.support_type?.includes('declaration')))){
-    if(e.receipt_image_base64){doc.addPage();doc.setFillColor(...green);doc.rect(12,12,186,10,'F');doc.setTextColor(255);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text('EVIDENCIA DE BOLETA',16,19);doc.setTextColor(31,41,55);doc.setFontSize(10);doc.text(`${formatDate(e.entry_date)} · ${movementDetail(e)} · ${money(e.amount)}`,12,31);try{const data=`data:${e.receipt_mime||'image/jpeg'};base64,${e.receipt_image_base64}`;const props=doc.getImageProperties(data);const maxW=174,maxH=245;const scale=Math.min(maxW/props.width,maxH/props.height);const w=props.width*scale,h=props.height*scale;doc.addImage(data,props.fileType||'JPEG',18+(174-w)/2,38,w,h)}catch{}}
+  const {report,summary,entries=[]}=bundle
+  const doc=new jsPDF({unit:'mm',format:'a4'})
+  const navy=[23,50,77], red=[170,31,23], green=[0,135,73], orange=[239,125,32], light=[233,243,250], dark=[31,41,55], line=[199,208,216]
+  const x=12,w=186
+
+  doc.setFillColor(...navy);doc.rect(x,12,w,18,'F')
+  doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text('REPORTE DE TRANSPORTE · APC CORPORACION',105,23,{align:'center'})
+  doc.setTextColor(...dark);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(`${report.owner_name} · DNI ${report.owner_dni} · ${report.company_name} · RUC ${report.company_ruc}`,x,38,{maxWidth:w})
+
+  const rowH=12,labelW=34,valueW=40,half=w/2
+  const drawSummaryCell=(cx,cy,label,value,valueColor=navy)=>{
+    doc.setFillColor(...light);doc.setDrawColor(...line);doc.rect(cx,cy,labelW,rowH,'FD')
+    doc.setFillColor(255);doc.rect(cx+labelW,cy,valueW,rowH,'FD')
+    doc.setTextColor(...navy);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(label,cx+labelW/2,cy+7.5,{align:'center'})
+    doc.setTextColor(...valueColor);doc.setFontSize(11);doc.text(String(value),cx+labelW+valueW-3,cy+8,{align:'right'})
+  }
+  let sy=47
+  drawSummaryCell(x,sy,'TOTAL RECIBIDO',money(summary.received),green)
+  drawSummaryCell(x+half,sy,'TOTAL GASTADO',money(summary.spent),orange)
+  sy+=rowH
+  drawSummaryCell(x,sy,'SALDO',money(summary.balance),navy)
+  drawSummaryCell(x+half,sy,'MOVIMIENTOS',String(entries.length),navy)
+  sy+=rowH+8
+
+  doc.setFillColor(...navy);doc.rect(x,sy,w,10,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('MOVIMIENTOS',105,sy+6.5,{align:'center'})
+  sy+=12
+  autoTable(doc,{startY:sy,margin:{left:x,right:x},head:[['Fecha','Tipo','Detalle','Monto']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(e.issue_time?` · Hora ${e.issue_time}`:''),money(e.amount)]),styles:{fontSize:8.2,cellPadding:2.5,valign:'middle',lineColor:line,lineWidth:.15,textColor:dark},headStyles:{fillColor:red,textColor:255,fontStyle:'bold',halign:'center'},columnStyles:{0:{cellWidth:31},1:{cellWidth:27},2:{cellWidth:92},3:{cellWidth:36,halign:'right',fontStyle:'bold'}},didParseCell:data=>{if(data.section==='body'&&data.column.index===3){const e=entries[data.row.index];data.cell.styles.textColor=e?.entry_type==='credit'?green:orange}},alternateRowStyles:{fillColor:[255,255,255]}})
+  let fy=(doc.lastAutoTable?.finalY||sy)+7
+  if(fy>275){doc.addPage();fy=20}
+  doc.setFillColor(...light);doc.setDrawColor(...line);doc.rect(x,fy,32,11,'FD');doc.rect(x+92,fy,55,11,'FD');doc.setFillColor(255);doc.rect(x+147,fy,39,11,'FD')
+  doc.setTextColor(...navy);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('RESUMEN',x+16,fy+7,{align:'center'});doc.text('Saldo final',x+119.5,fy+7,{align:'center'});doc.text(money(summary.balance),x+183,fy+7,{align:'right'})
+
+  for(const e of entries.filter(v=>v.entry_type==='expense'&&(v.receipt_image_base64||v.support_type?.includes('declaration')))){
+    if(e.receipt_image_base64){doc.addPage();doc.setFillColor(...green);doc.rect(12,12,186,10,'F');doc.setTextColor(255);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text(`BOLETA · ${formatDate(e.entry_date)} · ${money(e.amount)} · ${movementDetail(e)}`,105,19,{align:'center',maxWidth:176});try{const data=`data:${e.receipt_mime||'image/jpeg'};base64,${e.receipt_image_base64}`;const props=doc.getImageProperties(data);const maxW=174,maxH=250;const scale=Math.min(maxW/props.width,maxH/props.height);const iw=props.width*scale,ih=props.height*scale;doc.addImage(data,props.fileType||'JPEG',18+(174-iw)/2,30,iw,ih)}catch{}}
     if(e.support_type?.includes('declaration')) addDeclarationPdf(doc,e,report)
   }
   doc.save(`Reporte_Transporte_${formatDate(report.period_start).replaceAll('/','-')}.pdf`)
 }
+
 function addDeclarationPdf(doc,e,r){
   doc.addPage();const navy=[23,50,77],green=[25,133,111],light=[245,247,250],yellow=[255,244,204];
   doc.setFillColor(...navy);doc.rect(12,12,186,16,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('DECLARACIÓN JURADA DE GASTO DE TRANSPORTE',105,22,{align:'center'});doc.setTextColor(94,107,120);doc.setFont('helvetica','italic');doc.setFontSize(8.5);doc.text(`DJ-${formatDate(e.entry_date).replaceAll('/','-')} · Transporte sin emisión de comprobante`,105,34,{align:'center'});
@@ -209,21 +246,36 @@ function addDeclarationPdf(doc,e,r){
 }
 
 async function downloadExcel(bundle){
-  const {report,summary,entries=[]}=bundle;const wb=new ExcelJS.Workbook();wb.creator='APC Corporacion';
-  const ws=wb.addWorksheet('Resumen',{views:[{showGridLines:false}]});ws.columns=[{width:16},{width:18},{width:28},{width:28},{width:18}];
-  ws.mergeCells('A1:E2');const t=ws.getCell('A1');t.value='REPORTE DE TRANSPORTE';t.font={bold:true,color:{argb:'FFFFFFFF'},size:18};t.alignment={horizontal:'center',vertical:'middle'};t.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};
-  ws.mergeCells('A3:E3');ws.getCell('A3').value=`${report.company_name} · RUC ${report.company_ruc}`;ws.getCell('A3').alignment={horizontal:'center'};ws.getCell('A3').font={italic:true,color:{argb:'FF5E6B78'}};
-  ws.mergeCells('A5:E5');ws.getCell('A5').value=`${report.owner_name} · DNI ${report.owner_dni}`;ws.getCell('A5').font={bold:true,color:{argb:'FF116B5A'}};
-  const sums=[['SALDO',summary.balance,'17324D'],['RECIBIDO',summary.received,'19856F'],['GASTADO',summary.spent,'E67E22']];sums.forEach((s,i)=>{const col=1+i*2;ws.mergeCells(7,col,7,Math.min(col+1,5));const c=ws.getCell(7,col);c.value=`${s[0]}  ${money(s[1])}`;c.font={bold:true,color:{argb:`FF${s[2]}`},size:13};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F7FA'}};c.alignment={horizontal:'center'};});
-  ws.addRow([]);const h=ws.addRow(['Fecha','Tipo','Detalle','Monto','Sustento']);h.eachCell(c=>{c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFAF231A'}};c.alignment={horizontal:'center'}});
-  entries.forEach(e=>{const row=ws.addRow([formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e),Number(e.amount),e.entry_type==='credit'?'—':supportLabel(e)]);row.getCell(4).numFmt='"S/ "0.00';});
-  const ev=wb.addWorksheet('Evidencias y DJ',{views:[{showGridLines:false}]});ev.columns=Array.from({length:8},()=>({width:15}));let row=1;
-  for(const e of entries.filter(x=>x.entry_type==='expense'&&(x.receipt_image_base64||x.support_type?.includes('declaration')))){
-    if(e.receipt_image_base64){ev.mergeCells(row,1,row,8);let c=ev.getCell(row,1);c.value=`EVIDENCIA · ${formatDate(e.entry_date)} · ${movementDetail(e)} · ${money(e.amount)}`;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF19856F'}};c.alignment={horizontal:'center'};row+=2;try{const ext=(e.receipt_mime||'image/jpeg').includes('png')?'png':'jpeg';const id=wb.addImage({base64:e.receipt_image_base64,extension:ext});ev.addImage(id,{tl:{col:1,row:row-1},ext:{width:420,height:540}});row+=29}catch{row+=2}}
-    if(e.support_type?.includes('declaration')){ev.mergeCells(row,1,row,8);let c=ev.getCell(row,1);c.value='DECLARACIÓN JURADA DE GASTO DE TRANSPORTE';c.font={bold:true,color:{argb:'FFFFFFFF'},size:14};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};c.alignment={horizontal:'center'};row+=2;const data=[['Fecha',formatDate(e.entry_date),'Monto',money(e.amount)],['Origen',e.origin||'—','Destino',e.destination||'—'],['Ingeniero',e.engineer_name||report.engineer_name||'—','Motivo',e.declaration_reason||'Servicio sin comprobante']];data.forEach(d=>{ev.getRow(row).values=d;ev.getRow(row).height=26;row++});ev.mergeCells(row,1,row+5,8);ev.getCell(row,1).value=declarationText(e,report);ev.getCell(row,1).alignment={wrapText:true,vertical:'middle'};row+=7;ev.mergeCells(row,1,row,8);ev.getCell(row,1).value=`Lugar y fecha de firma: ${e.declaration_place_date||'—'}`;ev.getCell(row,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF4CC'}};row+=2;if(e.signature_base64){try{const id=wb.addImage({base64:e.signature_base64,extension:'png'});ev.addImage(id,{tl:{col:1,row:row-1},ext:{width:180,height:75}})}catch{}}row+=6;ev.mergeCells(row,1,row,4);ev.getCell(row,1).value=`FIRMA DEL TRABAJADOR\n${report.owner_name}\nDNI ${report.owner_dni}`;ev.getCell(row,1).alignment={horizontal:'center',wrapText:true};ev.mergeCells(row,5,row,8);ev.getCell(row,5).value=`V.º B.º / FIRMA DEL INGENIERO\n${e.engineer_name||report.engineer_name||''}`;ev.getCell(row,5).alignment={horizontal:'center',wrapText:true};row+=4;}
+  const {report,summary,entries=[]}=bundle
+  const wb=new ExcelJS.Workbook();wb.creator='APC Corporacion'
+  const ws=wb.addWorksheet('Resumen',{views:[{showGridLines:false}]})
+  ws.columns=[{width:15},{width:14},{width:42},{width:16}]
+  ws.mergeCells('A1:D1');ws.getRow(1).height=32;let c=ws.getCell('A1');c.value='REPORTE DE TRANSPORTE · APC CORPORACION';c.font={bold:true,color:{argb:'FFFFFFFF'},size:16};c.alignment={horizontal:'center',vertical:'middle'};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}}
+  ws.mergeCells('A2:D2');ws.getRow(2).height=24;c=ws.getCell('A2');c.value=`${report.owner_name} · DNI ${report.owner_dni} · ${report.company_name} · RUC ${report.company_ruc}`;c.font={color:{argb:'FF1F2937'},size:11};c.alignment={vertical:'middle',wrapText:true}
+  const border={top:{style:'thin',color:{argb:'FFC7D0D8'}},bottom:{style:'thin',color:{argb:'FFC7D0D8'}},left:{style:'thin',color:{argb:'FFC7D0D8'}},right:{style:'thin',color:{argb:'FFC7D0D8'}}}
+  const label=(ref,text)=>{const x=ws.getCell(ref);x.value=text;x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE9F3FA'}};x.font={bold:true,color:{argb:'FF17324D'}};x.alignment={horizontal:'center',vertical:'middle'};x.border=border}
+  const moneyCell=(ref,value,color='17324D')=>{const x=ws.getCell(ref);x.value=Number(value);x.numFmt='"S/ "#,##0.00';x.font={bold:true,color:{argb:`FF${color}`}};x.alignment={horizontal:'right',vertical:'middle'};x.border=border}
+  label('A4','TOTAL RECIBIDO');moneyCell('B4',summary.received,'008749');label('C4','TOTAL GASTADO');moneyCell('D4',summary.spent,'EF7D20')
+  label('A5','SALDO');moneyCell('B5',summary.balance,'17324D');label('C5','MOVIMIENTOS');c=ws.getCell('D5');c.value=entries.length;c.font={bold:true,color:{argb:'FF17324D'}};c.alignment={horizontal:'right',vertical:'middle'};c.border=border
+  ws.getRow(4).height=24;ws.getRow(5).height=24
+  ws.mergeCells('A7:D7');ws.getRow(7).height=25;c=ws.getCell('A7');c.value='MOVIMIENTOS';c.font={bold:true,color:{argb:'FFFFFFFF'}};c.alignment={horizontal:'center',vertical:'middle'};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}}
+  const head=ws.getRow(8);head.values=['Fecha','Tipo','Detalle','Monto'];head.height=26;head.eachCell(x=>{x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFAA1F17'}};x.alignment={horizontal:'center',vertical:'middle',wrapText:true};x.border=border})
+  entries.forEach((e,i)=>{const r=ws.getRow(9+i);r.values=[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(e.issue_time?` · Hora ${e.issue_time}`:''),Number(e.amount)];r.height=30;r.eachCell(x=>{x.border=border;x.alignment={vertical:'middle',wrapText:true};x.font={color:{argb:'FF1F2937'},size:11}});r.getCell(4).numFmt='"S/ "#,##0.00';r.getCell(4).font={bold:true,color:{argb:e.entry_type==='credit'?'FF008749':'FFEF7D20'}}})
+  const end=9+entries.length+1;label(`A${end}`,'RESUMEN');label(`C${end}`,'Saldo final');moneyCell(`D${end}`,summary.balance,'17324D')
+
+  const ev=wb.addWorksheet('Evidencias',{views:[{showGridLines:false}]});ev.columns=Array.from({length:8},()=>({width:15}));let row=1
+  ev.mergeCells(row,1,row,8);c=ev.getCell(row,1);c.value='EVIDENCIAS Y DECLARACIONES';c.font={bold:true,color:{argb:'FFFFFFFF'},size:16};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};c.alignment={horizontal:'center'};row+=1
+  ev.mergeCells(row,1,row,8);ev.getCell(row,1).value=`${report.owner_name} · DNI ${report.owner_dni} · Reporte de transporte`;row+=2
+  for(const e of entries.filter(v=>v.entry_type==='expense'&&(v.receipt_image_base64||v.support_type?.includes('declaration')))){
+    if(e.receipt_image_base64){ev.mergeCells(row,1,row,8);c=ev.getCell(row,1);c.value=`BOLETA · ${formatDate(e.entry_date)} · ${money(e.amount)} · ${movementDetail(e)}`;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF008749'}};c.alignment={horizontal:'center'};row+=1;try{const ext=(e.receipt_mime||'image/jpeg').includes('png')?'png':'jpeg';const id=wb.addImage({base64:e.receipt_image_base64,extension:ext});ev.addImage(id,{tl:{col:1,row:row-1},ext:{width:420,height:540}});row+=29}catch{row+=2}}
+    if(e.support_type?.includes('declaration')){ev.mergeCells(row,1,row,8);c=ev.getCell(row,1);c.value='DECLARACIÓN JURADA DE GASTO DE TRANSPORTE';c.font={bold:true,color:{argb:'FFFFFFFF'},size:14};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};c.alignment={horizontal:'center'};row+=2;const data=[['Fecha del pasaje',formatDate(e.entry_date),'Monto pagado',money(e.amount)],['Origen',e.origin||'—','Destino',e.destination||'—'],['Ingeniero responsable',e.engineer_name||report.engineer_name||'—','Motivo',e.declaration_reason||'Falta de disponibilidad de transporte público regular.']];data.forEach(d=>{ev.getRow(row).values=d;ev.getRow(row).height=28;row++});ev.mergeCells(row,1,row+5,8);ev.getCell(row,1).value=declarationText(e,report);ev.getCell(row,1).alignment={wrapText:true,vertical:'middle'};row+=7;ev.mergeCells(row,1,row,8);ev.getCell(row,1).value=`Lugar y fecha de firma: ${e.declaration_place_date||'—'}`;ev.getCell(row,1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF4CC'}};row+=2;if(e.signature_base64){try{const id=wb.addImage({base64:e.signature_base64,extension:'png'});ev.addImage(id,{tl:{col:1,row:row-1},ext:{width:180,height:75}})}catch{}}row+=6;ev.mergeCells(row,1,row,4);ev.getCell(row,1).value=`FIRMA DEL TRABAJADOR
+${report.owner_name}
+DNI ${report.owner_dni}`;ev.getCell(row,1).alignment={horizontal:'center',wrapText:true};ev.mergeCells(row,5,row,8);ev.getCell(row,5).value=`V.º B.º / FIRMA DEL INGENIERO
+${e.engineer_name||report.engineer_name||''}`;ev.getCell(row,5).alignment={horizontal:'center',wrapText:true};row+=4}
   }
   const buffer=await wb.xlsx.writeBuffer();saveAs(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`Reporte_Transporte_${formatDate(report.period_start).replaceAll('/','-')}.xlsx`)
 }
+
 
 function Empty(){return <div className="empty"><FileText size={42}/><h2>Aún no hay reportes</h2><p>Cuando sincronices un reporte desde la APK aparecerá aquí automáticamente.</p></div>}
 createRoot(document.getElementById('root')).render(<App/>)

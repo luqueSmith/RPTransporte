@@ -1,36 +1,31 @@
-# APC Corporacion · Reportes de transporte
+# APC Transporte Web v1.2
 
-Web React/Vite para que el ingeniero revise los reportes que la APK sincroniza con Supabase.
+Web React para que el ingeniero revise los reportes de transporte desde una interfaz sencilla.
 
-## 1. Base de datos
-Ejecuta `database.sql` (entregado aparte) completo en **Supabase > SQL Editor**.
+## Actualización v1.2
+- Historial sincronizado con Supabase.
+- Los 3 reportes históricos entregados por Raul se cargan mediante `supabase/ACTUALIZAR_v1.6.sql`.
+- Cuando una evidencia histórica ya fue mostrada, la web indica **Ya mostradas** sin intentar abrir una imagen que no está guardada en Supabase.
+- Aprobar reporte, solicitar corrección y observaciones siguen disponibles.
+- Descarga PDF y Excel se mantiene.
+- Compatible con GitHub Pages en `luqueSmith/RPTransporte`.
 
-PIN inicial de la web: **2026**.
+## Paso importante antes de usar la APK v1.6
+En Supabase abre **SQL Editor > New query**, pega y ejecuta completo:
 
-## 2. Ejecutar localmente
+`supabase/ACTUALIZAR_v1.6.sql`
+
+La sección de historial reemplaza los reportes actuales por los 3 reportes históricos solicitados. Después, los reportes nuevos que sincronices desde la APK se agregarán normalmente.
+
+## Desarrollo local
 ```bash
 npm install
 npm run dev
 ```
 
-## 3. Compilar
+## Publicar cambios en GitHub
 ```bash
-npm run build
+git add .
+git commit -m "Actualiza web APC v1.2"
+git push
 ```
-La carpeta `dist` queda lista para publicar.
-
-## 4. GitHub + Vercel
-1. Sube esta carpeta a un repositorio GitHub.
-2. En Vercel: New Project > importa el repositorio.
-3. Framework preset: Vite.
-4. Build command: `npm run build`.
-5. Output directory: `dist`.
-
-La URL y la publishable key de Supabase ya están configuradas en `src/config.js`.
-La **service_role/secret key NO está incluida** y no debe colocarse en código del navegador.
-
-## Uso
-- La APK funciona offline y conserva los movimientos localmente.
-- Cuando haya internet, usa **Sincronizar web** / **Enviar al ingeniero** desde la APK.
-- El ingeniero abre la web, ingresa el PIN, revisa el reporte, abre boletas/declaraciones, agrega una observación y puede aprobar o solicitar corrección.
-- PDF y Excel se generan desde la propia web.
