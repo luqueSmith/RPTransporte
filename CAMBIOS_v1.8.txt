@@ -1,0 +1,8 @@
+APC Transporte Web v1.8
+
+- Filtro global por rango de fechas.
+- El logo del navbar vuelve arriba al tocarlo.
+- Períodos cerrados mantienen su resumen visible y los movimientos se despliegan solo al solicitarlos.
+- En móvil, período actual/finalizado/cerrado están más separados y muestran claramente su rango de fechas.
+- Nuevo favicon APC con las flechas verde/naranja.
+- No requiere cambios de Supabase ni APK.

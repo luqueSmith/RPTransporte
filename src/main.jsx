@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, CircleAlert, Download, Eye, FileSpreadsheet, FileText,
+  AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, CircleAlert, Download, Eye, FileSpreadsheet, FileText, Filter,
   LogOut, MessageSquareText, MoonStar, RefreshCw, RotateCcw, Route, ShieldCheck, SunMedium, WalletCards, X
 } from 'lucide-react'
 import { getReport, listReports, login, reviewReport } from './supabase'
@@ -49,6 +49,14 @@ const sortBundles = list => [...list].sort((a,b)=>{
   return String(b.report?.period_start||'').localeCompare(String(a.report?.period_start||''))
 })
 
+const inDateRange = (date, from, to) => {
+  const d=String(date||'').slice(0,10)
+  if(!d) return false
+  if(from && d<from) return false
+  if(to && d>to) return false
+  return true
+}
+
 function ApcLogo({className=''}) {
   return <span className={`apc-logo-pair ${className}`}>
     <img className="apc-logo-light" src={asset('apc-logo-light.webp')} alt="APC Corporacion"/>
@@ -64,6 +72,8 @@ function App(){
   const [error,setError] = useState('')
   const [modal,setModal] = useState(null)
   const [theme,setTheme] = useState(localStorage.getItem('apc_theme') || 'light')
+  const [dateFrom,setDateFrom] = useState('')
+  const [dateTo,setDateTo] = useState('')
 
   useEffect(()=>{document.documentElement.dataset.theme=theme;localStorage.setItem('apc_theme',theme)},[theme])
   useEffect(()=>{ if(pin && sessionStorage.getItem('apc_pin')) doLogin(pin, true) },[])
@@ -71,6 +81,10 @@ function App(){
   const current = useMemo(()=>bundles.find(b=>!b.report?.is_closed && !b.report?.period_end) || null,[bundles])
   const pending = useMemo(()=>bundles.filter(b=>!b.report?.is_closed && !!b.report?.period_end).sort((a,b)=>String(b.report.period_start).localeCompare(String(a.report.period_start))),[bundles])
   const closed = useMemo(()=>bundles.filter(b=>b.report?.is_closed).sort((a,b)=>String(b.report.period_start).localeCompare(String(a.report.period_start))),[bundles])
+  const dateFilterActive=!!(dateFrom||dateTo)
+  const filterEntries=entries=>dateFilterActive?(entries||[]).filter(e=>inDateRange(e.entry_date,dateFrom,dateTo)):(entries||[])
+  const periodHasMatches=b=>!dateFilterActive||filterEntries(b.entries).length>0
+  const matchCount=useMemo(()=>bundles.reduce((n,b)=>n+filterEntries(b.entries).length,0),[bundles,dateFrom,dateTo])
 
   async function doLogin(value=pin, quiet=false){
     setLoading(true); setError('')
@@ -121,7 +135,7 @@ function App(){
   if(!logged) return <Login pin={pin} setPin={setPin} onLogin={()=>doLogin()} loading={loading} error={error} theme={theme} setTheme={setTheme}/>
   return <div className="app-shell">
     <header className="topbar">
-      <div className="brand"><ApcLogo className="brand-logo"/><div className="brand-copy"><strong>APC Corporacion</strong><span>Control de transporte</span></div></div>
+      <button className="brand brand-home" onClick={()=>window.scrollTo({top:0,behavior:'smooth'})} title="Volver arriba" aria-label="Volver al inicio"><ApcLogo className="brand-logo"/><div className="brand-copy"><strong>APC Corporacion</strong><span>Control de transporte</span></div></button>
       <div className="top-actions">
         <button className="theme-switch" onClick={()=>setTheme(theme==='dark'?'light':'dark')} title={theme==='dark'?'Cambiar a modo día':'Cambiar a modo noche'}>
           {theme==='dark'?<SunMedium size={19}/>:<MoonStar size={19}/>}
@@ -143,28 +157,43 @@ function App(){
           </div>
         </section>
 
-        {current && <>
-          <div className="section-marker current-marker"><span>PERÍODO ACTUAL</span><b>Cuenta abierta</b></div>
-          <PeriodSection bundle={current} current onEvidence={(item)=>setModal({item,report:current.report})}/>
+        <DateFilter dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} active={dateFilterActive} matches={matchCount}/>
+
+        {current && periodHasMatches(current) && <>
+          <div className="section-marker current-marker"><div className="marker-copy"><span>PERÍODO ACTUAL</span><small>{formatDate(current.report.period_start)} – hoy</small></div><b>Cuenta abierta</b></div>
+          <PeriodSection bundle={{...current,entries:filterEntries(current.entries)}} current filtered={dateFilterActive} onEvidence={(item)=>setModal({item,report:current.report})}/>
           {current.report.status!=='draft' && <ReviewPanel bundle={current} onReview={review}/>} 
         </>}
 
-        {!!pending.length && <div className="past-title"><span className="eyebrow">ENVIADOS</span><h2>Pendientes de revisión o liquidación</h2><p>Estos periodos ya terminaron, pero todavía no se han marcado como cuentas liquidadas desde la APK.</p></div>}
-        {pending.map(b=><React.Fragment key={b.report.id}>
-          <div className="section-marker pending-marker"><span>{formatDate(b.report.period_start)} – {formatDate(b.report.period_end)}</span><b>{statusMeta[b.report.status]?.[0]||'En revisión'}</b></div>
-          <PeriodSection bundle={b} pending onEvidence={(item)=>setModal({item,report:b.report})}/>
+        {!!pending.filter(periodHasMatches).length && <div className="past-title"><span className="eyebrow">ENVIADOS</span><h2>Pendientes de revisión o liquidación</h2><p>Estos periodos ya terminaron, pero todavía no se han marcado como cuentas liquidadas desde la APK.</p></div>}
+        {pending.filter(periodHasMatches).map(b=><React.Fragment key={b.report.id}>
+          <div className="section-marker pending-marker"><div className="marker-copy"><span>PERÍODO FINALIZADO</span><small>{formatDate(b.report.period_start)} – {formatDate(b.report.period_end)}</small></div><b>{statusMeta[b.report.status]?.[0]||'En revisión'}</b></div>
+          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} pending filtered={dateFilterActive} onEvidence={(item)=>setModal({item,report:b.report})}/>
           <ReviewPanel bundle={b} onReview={review}/>
         </React.Fragment>)}
 
-        {!!closed.length && <div className="past-title"><span className="eyebrow">CUENTAS ANTERIORES</span><h2>Períodos liquidados</h2><p>Estos períodos quedaron saldados al finalizar. Su saldo pendiente actual es S/ 0.00.</p></div>}
-        {closed.map(b=><React.Fragment key={b.report.id}>
-          <div className="section-marker closed-marker"><span>{formatDate(b.report.period_start)} – {formatDate(b.report.period_end)}</span><b><CheckCircle2 size={15}/> Liquidado</b></div>
-          <PeriodSection bundle={b} onEvidence={(item)=>setModal({item,report:b.report})}/>
+        {!!closed.filter(periodHasMatches).length && <div className="past-title"><span className="eyebrow">CUENTAS ANTERIORES</span><h2>Períodos liquidados</h2><p>Estos períodos quedaron saldados al finalizar. Su saldo pendiente actual es S/ 0.00.</p></div>}
+        {closed.filter(periodHasMatches).map(b=><React.Fragment key={b.report.id}>
+          <div className="section-marker closed-marker"><div className="marker-copy"><span>PERÍODO CERRADO</span><small>{formatDate(b.report.period_start)} – {formatDate(b.report.period_end)}</small></div><b><CheckCircle2 size={15}/> Liquidado</b></div>
+          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} filtered={dateFilterActive} collapsible onEvidence={(item)=>setModal({item,report:b.report})}/>
         </React.Fragment>)}
+        {dateFilterActive && matchCount===0 && <div className="filter-empty"><CalendarDays size={28}/><strong>No hay movimientos en esas fechas</strong><span>Prueba con otro rango o limpia el filtro.</span></div>}
       </>}
     </main>
     {modal && <EvidenceModal item={modal.item} report={modal.report} onClose={()=>setModal(null)}/>} 
   </div>
+}
+
+function DateFilter({dateFrom,dateTo,setDateFrom,setDateTo,active,matches}){
+  return <section className={`date-filter ${active?'active':''}`}>
+    <div className="date-filter-copy"><span className="filter-icon"><Filter size={18}/></span><div><strong>Filtrar por fecha</strong><small>Busca rápidamente movimientos de uno o varios días.</small></div></div>
+    <div className="date-filter-controls">
+      <label><span>Desde</span><input type="date" value={dateFrom} max={dateTo||undefined} onChange={e=>setDateFrom(e.target.value)}/></label>
+      <label><span>Hasta</span><input type="date" value={dateTo} min={dateFrom||undefined} onChange={e=>setDateTo(e.target.value)}/></label>
+      {active && <button className="clear-filter" onClick={()=>{setDateFrom('');setDateTo('')}}><X size={15}/> Limpiar</button>}
+    </div>
+    {active && <div className="filter-result"><strong>{matches}</strong><span>{matches===1?'movimiento encontrado':'movimientos encontrados'}</span></div>}
+  </section>
 }
 
 function Login({pin,setPin,onLogin,loading,error,theme,setTheme}){
@@ -177,7 +206,7 @@ function Login({pin,setPin,onLogin,loading,error,theme,setTheme}){
   </div></div>
 }
 
-function PeriodSection({bundle,current=false,pending=false,onEvidence}){
+function PeriodSection({bundle,current=false,pending=false,filtered=false,collapsible=false,onEvidence}){
   const {report,summary,entries=[]}=bundle
   const status=statusMeta[report.status]||[report.status,'neutral']
   const period=report.period_end?`${longDate(report.period_start)} – ${longDate(report.period_end)}`:`Desde ${longDate(report.period_start)}`
@@ -193,7 +222,14 @@ function PeriodSection({bundle,current=false,pending=false,onEvidence}){
       {!active && <div className="metric closure"><span>{raw>0?'Devuelto al cierre':raw<0?'Regularización de cierre':'Cierre'}</span><strong>{money(adjustment)}</strong></div>}
     </div>
     {!active && <div className="closure-note"><CheckCircle2 size={17}/><div><strong>Cuenta liquidada · saldo S/ 0.00</strong><span>{report.closure_note || (raw>0?'El saldo sobrante fue devuelto al finalizar el período.':raw<0?'La diferencia pendiente fue regularizada al finalizar el período.':'El período cerró sin saldo pendiente.')}</span></div></div>}
+    {filtered && <div className="period-filter-note"><Filter size={14}/> Mostrando solo movimientos que coinciden con el filtro de fecha. Los totales superiores corresponden al período completo.</div>}
 
+    {collapsible ? <details className="closed-movements-details"><summary><span><CalendarDays size={16}/> Movimientos y sustentos</span><b>{entries.length} {entries.length===1?'registro':'registros'}</b><ChevronDown size={18}/></summary><div className="closed-movements-body"><MovementTable entries={entries} onEvidence={onEvidence}/></div></details> : <MovementTable entries={entries} onEvidence={onEvidence}/>}
+  </section>
+}
+
+function MovementTable({entries,onEvidence}){
+  return <>
     <div className="movements-heading">
       <div className="movements-title">
         <span className="movements-icon"><WalletCards size={20}/></span>
@@ -211,7 +247,7 @@ function PeriodSection({bundle,current=false,pending=false,onEvidence}){
         <td data-label="Sustento"><SupportCell item={e} onOpen={()=>onEvidence(e)}/></td>
       </tr>)}
     </tbody></table></div>
-  </section>
+  </>
 }
 
 function SupportCell({item,onOpen}){

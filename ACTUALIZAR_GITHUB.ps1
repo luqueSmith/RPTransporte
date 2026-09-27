@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 $src = $PSScriptRoot
 $repo = "C:\Users\luque\Downloads\RPTransporte_v17"
 
-Write-Host "Copiando APC Transporte Web v1.6..." -ForegroundColor Cyan
+Write-Host "Copiando APC Transporte Web v1.8..." -ForegroundColor Cyan
 robocopy $src $repo /E /XD node_modules .git dist docs | Out-Host
 if ($LASTEXITCODE -ge 8) { throw "Robocopy fallo con codigo $LASTEXITCODE" }
 
@@ -21,9 +21,9 @@ New-Item -ItemType File -Path "$repo\docs\.nojekyll" -Force | Out-Null
 git add -A
 $changes = git status --porcelain
 if ($changes) {
-  git commit -m "Optimiza carga y ajusta logos APC Transporte v1.6"
+  git commit -m "Filtro por fecha y periodos desplegables APC Transporte v1.8"
   git push
-  Write-Host "WEB APC v1.6 SUBIDA CORRECTAMENTE" -ForegroundColor Green
+  Write-Host "WEB APC v1.8 SUBIDA CORRECTAMENTE" -ForegroundColor Green
 } else {
   Write-Host "No hay cambios nuevos para subir." -ForegroundColor Yellow
 }
