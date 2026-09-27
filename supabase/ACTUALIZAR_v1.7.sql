@@ -370,11 +370,11 @@ insert into public.transport_reports(
 );
 
 insert into public.transport_entries(id,report_id,entry_type,entry_date,direction,origin,destination,detail,amount,issue_time,support_type,support_note,support_asset,declaration_reason,declaration_place_date,engineer_name) values
-('16000000-0000-4000-8000-000000000001','33333333-3333-4333-8333-333333333333','credit','2026-09-16','','','','Entrega registrada',30,null,'none','','','','','',''),
+('16000000-0000-4000-8000-000000000001','33333333-3333-4333-8333-333333333333','credit','2026-09-16','','','','Entrega registrada',30,null,'none','','','','',''),
 ('16000000-0000-4000-8000-000000000002','33333333-3333-4333-8333-333333333333','expense','2026-09-16','RETORNO','BARRIO CHINO','CRUCE PISCO','BARRIO CHINO - CRUCE PISCO',5,'6:37 PM','receipt','','historical/2026-09-16_ret_s5.jpg','','',''),
 ('16000000-0000-4000-8000-000000000003','33333333-3333-4333-8333-333333333333','expense','2026-09-17','IDA','CRUCE PISCO','ICA','CRUCE PISCO - ICA',10,'5:58 AM','receipt','','historical/2026-09-17_ida_s10.jpg','','',''),
 ('16000000-0000-4000-8000-000000000004','33333333-3333-4333-8333-333333333333','expense','2026-09-17','RETORNO','CRUCE PISCO','SAN CLEMENTE','CRUCE PISCO - SAN CLEMENTE',8,null,'declaration','','historical/2026-09-17_declaracion_s8.jpg','Falta de disponibilidad de transporte público regular debido al horario tardío.','San Clemente, 20 de setiembre de 2026','MUÑOZ QUIJANDRÍA, LUIS GUILLERMO'),
-('16000000-0000-4000-8000-000000000005','33333333-3333-4333-8333-333333333333','credit','2026-09-18','','','','Entrega registrada',40,null,'none','','','','','',''),
+('16000000-0000-4000-8000-000000000005','33333333-3333-4333-8333-333333333333','credit','2026-09-18','','','','Entrega registrada',40,null,'none','','','','',''),
 ('16000000-0000-4000-8000-000000000006','33333333-3333-4333-8333-333333333333','expense','2026-09-18','RETORNO','BARRIO CHINO','CRUCE PISCO','BARRIO CHINO - CRUCE PISCO',5,'3:04 PM','receipt','','historical/2026-09-18_ret_s5.jpg','','',''),
 ('16000000-0000-4000-8000-000000000007','33333333-3333-4333-8333-333333333333','expense','2026-09-18','IDA','CRUCE PISCO','ICA','CRUCE PISCO - ICA',10,'5:32 AM','receipt','','historical/2026-09-18_ida_s10.jpg','','',''),
 ('16000000-0000-4000-8000-000000000008','33333333-3333-4333-8333-333333333333','expense','2026-09-19','IDA','CRUCE PISCO','ICA','CRUCE PISCO - ICA',10,'5:36 AM','receipt','','historical/2026-09-19_ida_s10.jpg','','',''),

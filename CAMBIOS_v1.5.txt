@@ -1,0 +1,18 @@
+APC Transporte Web v1.5
+
+- Logo claro completo y grande en modo día.
+- Logo oscuro completo y grande en modo noche.
+- Logos ajustados a PC y móvil sin deformarse.
+- Inicio de sesión con logo mucho más visible.
+- Navbar con logo corporativo completo.
+- Tabla de movimientos rediseñada de forma visible:
+  * cabecera "Movimientos / Detalle de transporte"
+  * leyenda Crédito / Gasto
+  * iconos de fecha, ruta, crédito y gasto
+  * filas tipo tarjeta
+  * borde verde para crédito y naranja para gasto
+  * monto destacado
+  * colores diferentes en modo día y noche
+  * tarjetas adaptadas a móvil
+- Revisión administrativa sigue plegable.
+- No requiere SQL nuevo.
