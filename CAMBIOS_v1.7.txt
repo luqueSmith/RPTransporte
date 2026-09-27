@@ -1,0 +1,8 @@
+APC Transporte Web v1.7 · Navbar de escritorio
+
+- Navbar de PC más compacto.
+- Fondo del navbar sólido, sin transparencia.
+- Logo APC completo y con espacio extra a la derecha para evitar cualquier recorte visual.
+- Botones superiores ligeramente más compactos.
+- El diseño móvil NO fue modificado.
+- No requiere cambios de Supabase, SQL ni APK.

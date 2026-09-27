@@ -84,3 +84,33 @@
 .apc-logo-pair img{will-change:auto}
 @media(max-width:620px){.login-card{padding:22px 18px}.login-icon{width:44px;height:44px}.login-card h1{font-size:21px}.movements-heading{margin-top:14px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation-duration:.001ms!important}}
+
+/* v1.7 · Ajuste exclusivo para navbar de escritorio.
+   En móvil se conserva exactamente el diseño de v1.6. */
+@media (min-width:901px){
+  .topbar{
+    min-height:68px;
+    padding:6px 22px;
+    background:var(--surface);
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+    box-shadow:0 3px 14px rgba(23,50,77,.07);
+  }
+  .brand-logo{
+    width:164px;
+    height:54px;
+    overflow:visible;
+    padding-right:6px;
+    box-sizing:border-box;
+  }
+  .brand-logo img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    object-position:left center;
+  }
+  .top-actions{gap:7px}
+  .topbar .theme-switch{height:40px;padding:0 13px}
+  .topbar .icon-btn{width:40px;height:40px}
+  .topbar .ghost{height:40px;padding:0 13px}
+}
