@@ -4,10 +4,6 @@ import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, CircleAlert, Download, Eye, FileSpreadsheet, FileText,
   LogOut, MessageSquareText, MoonStar, RefreshCw, RotateCcw, Route, ShieldCheck, SunMedium, WalletCards, X
 } from 'lucide-react'
-import { saveAs } from 'file-saver'
-import ExcelJS from 'exceljs'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { getReport, listReports, login, reviewReport } from './supabase'
 import './styles.css'
 
@@ -35,11 +31,28 @@ const movementDetail = e => {
 const isLost = e => /extraviad|perdid|sustra/i.test(e.support_note || '')
 const isShown = e => /ya mostr/i.test(e.support_note || '')
 const canOpenSupport = e => !!(e.receipt_image_base64 || e.support_asset || e.support_type?.includes('declaration'))
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+const friendlyError = e => {
+  const m = String(e?.message || e || '')
+  if (/failed to fetch|network|load failed|fetch/i.test(m)) return 'La conexión con el reporte está tardando. Intenta nuevamente en unos segundos.'
+  return m || 'No se pudo completar la operación'
+}
+async function retryCall(fn, attempts=2){
+  let last
+  for(let i=0;i<attempts;i++){
+    try{return await fn()}catch(e){last=e;if(i<attempts-1)await delay(500*(i+1))}
+  }
+  throw last
+}
+const sortBundles = list => [...list].sort((a,b)=>{
+  if(!!a.report?.is_closed!==!!b.report?.is_closed) return a.report?.is_closed?1:-1
+  return String(b.report?.period_start||'').localeCompare(String(a.report?.period_start||''))
+})
 
 function ApcLogo({className=''}) {
   return <span className={`apc-logo-pair ${className}`}>
-    <img className="apc-logo-light" src={asset('apc-logo-light.png')} alt="APC Corporacion"/>
-    <img className="apc-logo-dark" src={asset('apc-logo-dark.png')} alt="APC Corporacion"/>
+    <img className="apc-logo-light" src={asset('apc-logo-light.webp')} alt="APC Corporacion"/>
+    <img className="apc-logo-dark" src={asset('apc-logo-dark.webp')} alt="APC Corporacion"/>
   </span>
 }
 
@@ -62,31 +75,45 @@ function App(){
   async function doLogin(value=pin, quiet=false){
     setLoading(true); setError('')
     try{
-      const r = await login(value)
+      const r = await retryCall(()=>login(value), 2)
       if(!r?.ok) throw new Error('PIN incorrecto')
       sessionStorage.setItem('apc_pin',value); setPin(value); setLogged(true)
       await refreshAll(value)
-    }catch(e){ if(!quiet) setError(e.message || 'No se pudo ingresar') }
+    }catch(e){ if(!quiet) setError(friendlyError(e)) }
     finally{setLoading(false)}
   }
   async function refreshAll(p=pin){
     setLoading(true);setError('')
     try{
-      const rows=await listReports(p)
-      const loaded=await Promise.all((rows||[]).map(r=>getReport(p,r.id)))
-      loaded.sort((a,b)=>{
-        if(!!a.report.is_closed!==!!b.report.is_closed) return a.report.is_closed?1:-1
-        return String(b.report.period_start).localeCompare(String(a.report.period_start))
+      const rows=await retryCall(()=>listReports(p), 2)
+      if(!(rows||[]).length){setBundles([]);return}
+
+      const ordered=[...(rows||[])].sort((a,b)=>{
+        if(!!a.is_closed!==!!b.is_closed) return a.is_closed?1:-1
+        return String(b.period_start||'').localeCompare(String(a.period_start||''))
       })
-      setBundles(loaded)
-    }catch(e){setError(e.message||'No se pudo actualizar la web')}
+      const currentRow=ordered.find(r=>!r.is_closed&&!r.period_end) || ordered[0]
+      let currentBundle=null
+
+      if(currentRow){
+        currentBundle=await retryCall(()=>getReport(p,currentRow.id),2)
+        setBundles(prev=>sortBundles([currentBundle,...prev.filter(b=>b.report?.id!==currentBundle.report?.id)]))
+      }
+
+      const restRows=ordered.filter(r=>r.id!==currentRow?.id)
+      const results=await Promise.allSettled(restRows.map(r=>retryCall(()=>getReport(p,r.id),2)))
+      const rest=results.filter(x=>x.status==='fulfilled').map(x=>x.value)
+      const failed=results.filter(x=>x.status==='rejected').length
+      setBundles(sortBundles([...(currentBundle?[currentBundle]:[]),...rest]))
+      if(failed) setError('El reporte actual cargó, pero algunas evidencias anteriores tardaron en responder. Puedes pulsar Actualizar.')
+    }catch(e){setError(friendlyError(e))}
     finally{setLoading(false)}
   }
   async function review(reportId,action,note,reviewedBy){
     if(!reportId) return
     setLoading(true);setError('')
-    try{await reviewReport(pin,reportId,action,note,reviewedBy);await refreshAll()}
-    catch(e){setError(e.message||'No se pudo guardar la revisión')}
+    try{await retryCall(()=>reviewReport(pin,reportId,action,note,reviewedBy),2);await refreshAll()}
+    catch(e){setError(friendlyError(e))}
     finally{setLoading(false)}
   }
   function logout(){sessionStorage.removeItem('apc_pin');setLogged(false);setBundles([]);setPin('')}
@@ -310,6 +337,8 @@ async function entryImageData(e){
 function periodTitle(b){const r=b.report;return r.period_end?`${formatDate(r.period_start)} – ${formatDate(r.period_end)}`:`Desde ${formatDate(r.period_start)}`}
 
 async function downloadAllPdf(bundles){
+  const [{ jsPDF }, autoTableMod] = await Promise.all([import('jspdf'), import('jspdf-autotable')])
+  const autoTable = autoTableMod.default || autoTableMod.autoTable
   const doc=new jsPDF({unit:'mm',format:'a4'});const navy=[23,50,77],green=[25,133,111],orange=[239,125,32];let first=true
   for(const b of bundles){
     if(!first)doc.addPage();first=false
@@ -323,14 +352,14 @@ async function downloadAllPdf(bundles){
   }
   for(const b of bundles){
     for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){
-      const data=await entryImageData(e).catch(()=>null);if(!data && e.support_type?.includes('declaration')){addDeclarationPdf(doc,e,b.report);continue}if(!data)continue
+      const data=await entryImageData(e).catch(()=>null);if(!data && e.support_type?.includes('declaration')){addDeclarationPdf(doc,e,b.report,autoTable);continue}if(!data)continue
       doc.addPage();doc.setFillColor(...green);doc.rect(12,12,186,10,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(`${e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':'EVIDENCIA DE BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)}`,105,19,{align:'center'})
       try{const props=doc.getImageProperties(data);const maxW=174,maxH=250;const sc=Math.min(maxW/props.width,maxH/props.height);const w=props.width*sc,h=props.height*sc;doc.addImage(data,props.fileType||'JPEG',18+(174-w)/2,30,w,h)}catch{}
     }
   }
   doc.save('APC_Transporte_Consolidado.pdf')
 }
-function addDeclarationPdf(doc,e,r){
+function addDeclarationPdf(doc,e,r,autoTable){
   doc.addPage()
   const navy=[23,50,77],green=[25,133,111],orange=[239,125,32],line=[216,226,231],soft=[247,250,251]
   doc.setFillColor(...navy);doc.roundedRect(12,12,186,22,2,2,'F')
@@ -370,6 +399,9 @@ function addDeclarationPdf(doc,e,r){
 
 
 async function downloadAllExcel(bundles){
+  const [excelMod, saverMod] = await Promise.all([import('exceljs'), import('file-saver')])
+  const ExcelJS = excelMod.default || excelMod
+  const saveAs = saverMod.saveAs || saverMod.default
   const wb=new ExcelJS.Workbook();wb.creator='APC Corporacion';const ws=wb.addWorksheet('Reporte',{views:[{showGridLines:false}]});ws.columns=[{width:15},{width:14},{width:42},{width:16},{width:23}]
   const border={top:{style:'thin',color:{argb:'FFC7D0D8'}},bottom:{style:'thin',color:{argb:'FFC7D0D8'}},left:{style:'thin',color:{argb:'FFC7D0D8'}},right:{style:'thin',color:{argb:'FFC7D0D8'}}};let row=1
   for(const b of bundles){const r=b.report,s=b.summary,entries=b.entries||[],raw=Number(s.raw_balance??(s.received-s.spent));ws.mergeCells(row,1,row,5);let c=ws.getCell(row,1);c.value=r.is_closed?`CUENTA LIQUIDADA · ${periodTitle(b)}`:r.period_end?`REPORTE ENVIADO · ${periodTitle(b)}`:`REPORTE ACTUAL · ${periodTitle(b)}`;c.font={bold:true,color:{argb:'FFFFFFFF'},size:14};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};c.alignment={horizontal:'center'};row++

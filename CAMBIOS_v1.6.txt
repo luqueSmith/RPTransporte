@@ -1,0 +1,10 @@
+APC Transporte Web v1.6 OPTIMIZADA
+
+- Logo APC reducido a un tamaño más equilibrado en inicio y barra superior.
+- Los logos se convirtieron a WebP optimizado para cargar mucho más rápido.
+- PDF y Excel ahora se cargan solo al pulsar Descargar, reduciendo el peso inicial de la web.
+- El reporte actual se solicita primero; los periodos antiguos se completan después.
+- Reintento automático ante fallos breves de red.
+- Mensaje amigable en lugar de TypeError: Failed to fetch.
+- Menos blur/filtros y renderizado diferido de periodos cerrados.
+- No requiere cambios SQL ni actualización de APK.

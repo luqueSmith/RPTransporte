@@ -1,16 +1,11 @@
-# APC Transporte Web v1.5
+# APC Transporte Web v1.6
 
-Versión visual corporativa para GitHub Pages.
+Versión optimizada para GitHub Pages. Mantiene el diseño APC y reduce el tamaño visual de los logos.
 
-## Cambios principales
-- Usa los logos APC completos proporcionados para modo día y modo noche.
-- Los logos fueron recortados únicamente para retirar margen vacío y hacerlos visibles a tamaño profesional.
-- Logo grande y adaptable en inicio, navbar y declaración jurada.
-- Tabla de movimientos rediseñada con filas tipo tarjeta, separación visual entre créditos y gastos, iconos y colores APC.
-- Diseño específico para modo claro y oscuro.
-- En móvil, los movimientos se convierten en tarjetas legibles.
-- La revisión del reporte se mantiene plegada/desplegable.
-- No cambia la estructura de Supabase ni requiere ejecutar SQL nuevo.
+## Rendimiento
+- Carga diferida de librerías pesadas de PDF/Excel.
+- Logos WebP optimizados.
+- Carga prioritaria del reporte actual.
+- Reintentos automáticos si Supabase tarda temporalmente.
 
-## Publicación
-GitHub Pages debe usar `main / docs`. El archivo `ACTUALIZAR_GITHUB.ps1` copia esta versión al repositorio local, compila con Vite, genera `docs` y hace push.
+No requiere ejecutar SQL nuevo.
