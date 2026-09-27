@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
-  AlertTriangle, CheckCircle2, ChevronDown, CircleAlert, Download, Eye, FileSpreadsheet, FileText,
+  AlertTriangle, CheckCircle2, CircleAlert, Download, Eye, FileSpreadsheet, FileText,
   LogOut, MessageSquareText, Moon, RefreshCw, RotateCcw, ShieldCheck, Sun, X
 } from 'lucide-react'
 import { saveAs } from 'file-saver'
@@ -35,13 +35,6 @@ const movementDetail = e => {
 const isLost = e => /extraviad|perdid|sustra/i.test(e.support_note || '')
 const isShown = e => /ya mostr/i.test(e.support_note || '')
 const canOpenSupport = e => !!(e.receipt_image_base64 || e.support_asset || e.support_type?.includes('declaration'))
-
-function ApcLogo({className=''}) {
-  return <span className={`apc-logo-pair ${className}`}>
-    <img className="apc-logo-light" src={asset('apc-logo-light.png')} alt="APC Corporacion"/>
-    <img className="apc-logo-dark" src={asset('apc-logo-dark.png')} alt="APC Corporacion"/>
-  </span>
-}
 
 function App(){
   const [pin,setPin] = useState(sessionStorage.getItem('apc_pin') || '')
@@ -94,12 +87,9 @@ function App(){
   if(!logged) return <Login pin={pin} setPin={setPin} onLogin={()=>doLogin()} loading={loading} error={error} theme={theme} setTheme={setTheme}/>
   return <div className="app-shell">
     <header className="topbar">
-      <div className="brand"><ApcLogo className="brand-logo"/><div className="brand-copy"><strong>APC Corporacion</strong><span>Control de transporte</span></div></div>
+      <div className="brand"><img src={asset('apc-logo.jpg')}/><div><strong>APC Corporacion</strong><span>Control de transporte</span></div></div>
       <div className="top-actions">
-        <button className="theme-switch" onClick={()=>setTheme(theme==='dark'?'light':'dark')} title={theme==='dark'?'Cambiar a modo día':'Cambiar a modo noche'}>
-          {theme==='dark'?<Sun size={18}/>:<Moon size={18}/>}
-          <span>{theme==='dark'?'Modo día':'Modo noche'}</span>
-        </button>
+        <button className="icon-btn" onClick={()=>setTheme(theme==='dark'?'light':'dark')} title="Cambiar modo">{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}</button>
         <button className="icon-btn" onClick={()=>refreshAll()} title="Actualizar"><RefreshCw size={19}/></button>
         <button className="ghost" onClick={logout}><LogOut size={17}/> Salir</button>
       </div>
@@ -141,8 +131,8 @@ function App(){
 }
 
 function Login({pin,setPin,onLogin,loading,error,theme,setTheme}){
-  return <div className="login-page"><button className="login-theme" onClick={()=>setTheme(theme==='dark'?'light':'dark')}>{theme==='dark'?<Sun size={18}/>:<Moon size={18}/>}<span>{theme==='dark'?'Modo día':'Modo noche'}</span></button><div className="login-card">
-    <ApcLogo className="login-logo"/><div className="login-icon"><ShieldCheck size={28}/></div>
+  return <div className="login-page"><button className="login-theme" onClick={()=>setTheme(theme==='dark'?'light':'dark')}>{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}</button><div className="login-card">
+    <img className="login-logo" src={asset('apc-logo.jpg')}/><div className="login-icon"><ShieldCheck size={28}/></div>
     <h1>Reporte de transporte</h1><p>Consulta el reporte actual, las cuentas liquidadas, boletas y declaraciones juradas.</p>
     <label>PIN de acceso</label><input autoFocus inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>e.key==='Enter'&&onLogin()} placeholder="Ingresa el PIN"/>
     {error&&<div className="field-error">{error}</div>}
@@ -192,29 +182,16 @@ function ReviewPanel({bundle,onReview}){
   const [reviewedBy,setReviewedBy]=useState(report.reviewed_by||'Luis Guillermo Muñoz Quijandría')
   useEffect(()=>{setNote(report.boss_note||'');setReviewedBy(report.reviewed_by||'Luis Guillermo Muñoz Quijandría')},[report.id,report.status,report.boss_note,report.reviewed_by])
   const status=statusMeta[report.status]||[report.status,'neutral']
-  return <section className="review-shell">
-    <details className="review-details">
-      <summary className="review-summary">
-        <div className="review-summary-icon"><MessageSquareText size={19}/></div>
-        <div className="review-summary-copy">
-          <span className="eyebrow">{report.period_end?'REVISIÓN DEL PERÍODO':'REVISIÓN DEL REPORTE ACTUAL'}</span>
-          <strong>Conformidad del administrador</strong>
-          <small>Despliega solo si necesitas aprobar, pedir corrección o volver a revisión.</small>
-        </div>
-        <span className={`status ${status[1]}`}>{status[0]}</span>
-        <ChevronDown className="review-chevron" size={20}/>
-      </summary>
-      <div className="review-body">
-        <div className={`review-state ${status[1]}`}><div><strong>{status[0]}</strong>{report.reviewed_at&&<span>{report.reviewed_by||'Administrador'} · {new Date(report.reviewed_at).toLocaleString('es-PE')}</span>}</div></div>
-        {report.status==='draft' ? <div className="review-info">El reporte todavía está en preparación desde la APK. Cuando sea enviado para revisión aparecerán los controles de aprobación.</div> : <>
-          <div className="review-grid"><div><label>Administrador</label><input value={reviewedBy} onChange={e=>setReviewedBy(e.target.value)}/></div><div><label>Observación</label><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Opcional: escribe una observación breve"/></div></div>
-          <div className="review-actions">
-            {report.status==='submitted' && <><button className="approve" onClick={()=>onReview(report.id,'approve',note,reviewedBy)}><CheckCircle2 size={17}/> Aprobar reporte</button><button className="correction" onClick={()=>onReview(report.id,'correction',note,reviewedBy)}><CircleAlert size={17}/> Solicitar corrección</button></>}
-            {(report.status==='approved'||report.status==='correction_requested') && <button className="reset-review" onClick={()=>onReview(report.id,'reset','',reviewedBy)}><RotateCcw size={17}/> Volver a revisión</button>}
-          </div>
-        </>}
+  return <section className="panel review-panel">
+    <div className="panel-title"><div><span className="eyebrow">{report.period_end?'REVISIÓN DEL PERÍODO ENVIADO':'REVISIÓN DEL REPORTE ACTUAL'}</span><h2>Conformidad del administrador</h2></div><MessageSquareText size={22}/></div>
+    <div className={`review-state ${status[1]}`}><div><strong>{status[0]}</strong>{report.reviewed_at&&<span>{report.reviewed_by||'Administrador'} · {new Date(report.reviewed_at).toLocaleString('es-PE')}</span>}</div></div>
+    {report.status==='draft' ? <div className="review-info">El reporte todavía está en preparación desde la APK. Cuando sea enviado para revisión aparecerán los botones de aprobación.</div> : <>
+      <div className="review-grid"><div><label>Administrador</label><input value={reviewedBy} onChange={e=>setReviewedBy(e.target.value)}/></div><div><label>Observación</label><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Opcional: escribe una observación breve"/></div></div>
+      <div className="review-actions">
+        {report.status==='submitted' && <><button className="approve" onClick={()=>onReview(report.id,'approve',note,reviewedBy)}><CheckCircle2 size={17}/> Aprobar reporte</button><button className="correction" onClick={()=>onReview(report.id,'correction',note,reviewedBy)}><CircleAlert size={17}/> Solicitar corrección</button></>}
+        {(report.status==='approved'||report.status==='correction_requested') && <button className="reset-review" onClick={()=>onReview(report.id,'reset','',reviewedBy)}><RotateCcw size={17}/> Volver a revisión</button>}
       </div>
-    </details>
+    </>}
   </section>
 }
 
@@ -228,66 +205,12 @@ function EvidenceModal({item,report,onClose}){
 }
 
 function DeclarationCard({item,report}){
-  return <article className="declaration-card">
-    <header className="dj-header">
-      <ApcLogo className="dj-logo"/>
-      <div className="dj-header-copy">
-        <span>APC CORPORACION S.A.</span>
-        <h2>DECLARACIÓN JURADA DE GASTO DE TRANSPORTE</h2>
-        <p>Sustento de movilidad sin emisión de comprobante</p>
-      </div>
-    </header>
-
-    <div className="dj-reference">
-      <div><span>Trabajador</span><strong>{report.owner_name}</strong><small>DNI {report.owner_dni}</small></div>
-      <div><span>Empresa</span><strong>{report.company_name}</strong><small>RUC {report.company_ruc}</small></div>
-    </div>
-
-    <section className="dj-block">
-      <div className="dj-block-title">DATOS DEL GASTO</div>
-      <div className="dj-grid">
-        <Data label="Fecha del pasaje" value={formatDate(item.entry_date)}/>
-        <Data label="Monto pagado" value={money(item.amount)} accent/>
-        <Data label="Origen" value={item.origin||'—'}/>
-        <Data label="Destino" value={item.destination||'—'}/>
-        <Data label="Ingeniero responsable" value={item.engineer_name||report.engineer_name||'—'}/>
-        <Data label="Motivo" value={item.declaration_reason||'Servicio de transporte sin emisión de comprobante'}/>
-      </div>
-    </section>
-
-    <section className="dj-block">
-      <div className="dj-block-title declaration-title">DECLARACIÓN</div>
-      <div className="dj-statement">
-        <p>{declarationText(item,report)}</p>
-      </div>
-    </section>
-
-    <div className="dj-place">
-      <span>Lugar y fecha de firma</span>
-      <strong>{item.declaration_place_date||'—'}</strong>
-    </div>
-
-    <div className="signatures">
-      <div className="signature-box">
-        <div className="signature-visual">{item.signature_base64?<img src={`data:image/png;base64,${item.signature_base64}`}/>:<span/>}</div>
-        <div className="sign-line">FIRMA DEL TRABAJADOR</div>
-        <strong>{report.owner_name}</strong>
-        <small>DNI {report.owner_dni}</small>
-      </div>
-      <div className="signature-box">
-        <div className="signature-visual"><span/></div>
-        <div className="sign-line">V.º B.º / FIRMA DEL ADMINISTRADOR</div>
-        <strong>{item.engineer_name||report.engineer_name||'Administrador'}</strong>
-        <small>Conformidad del gasto</small>
-      </div>
-    </div>
-
-    <footer className="dj-footer">Documento de sustento interno de transporte · APC Corporacion</footer>
-  </article>
+  return <div className="declaration-card"><div className="dj-title">DECLARACIÓN JURADA DE GASTO DE TRANSPORTE</div><div className="dj-sub">Transporte sin emisión de comprobante</div><div className="dj-ident"><strong>{report.owner_name} · DNI {report.owner_dni}</strong><strong>{report.company_name} · RUC {report.company_ruc}</strong></div><div className="dj-section">DATOS DEL GASTO</div><div className="dj-grid">
+    <Data label="Fecha del pasaje" value={formatDate(item.entry_date)}/><Data label="Monto pagado" value={money(item.amount)} accent/><Data label="Origen" value={item.origin||'—'}/><Data label="Destino" value={item.destination||'—'}/><Data label="Ingeniero responsable" value={item.engineer_name||report.engineer_name||'—'}/><Data label="Motivo" value={item.declaration_reason||'Servicio de transporte sin emisión de comprobante'}/>
+  </div><div className="dj-section">DECLARACIÓN</div><p className="dj-text">{declarationText(item,report)}</p><div className="dj-place"><b>Lugar y fecha de firma:</b><span>{item.declaration_place_date||'—'}</span></div><div className="signatures"><div>{item.signature_base64?<img src={`data:image/png;base64,${item.signature_base64}`}/>:<div className="sign-space"/>}<div className="sign-line">FIRMA DEL TRABAJADOR</div><span>{report.owner_name}</span><small>DNI {report.owner_dni}</small></div><div><div className="sign-space"/><div className="sign-line">V.º B.º / FIRMA DEL ADMINISTRADOR</div><span>{item.engineer_name||report.engineer_name||''}</span></div></div></div>
 }
-
 function Data({label,value,accent}) {return <div className="data-cell"><span>{label}</span><strong className={accent?'accent':''}>{value}</strong></div>}
-function declarationText(e,r){return `Yo, ${r.owner_name}, identificado con DNI N.° ${r.owner_dni}, declaro bajo juramento que el día ${formatDate(e.entry_date)} realicé un gasto de ${money(e.amount)} por concepto de transporte en la ruta ${movementDetail(e)}, relacionado con mis traslados laborales para ${r.company_name}, RUC ${r.company_ruc}. El transportista no emitió boleta, factura ni otro comprobante de pago por el servicio. El motivo del uso de este transporte fue: ${e.declaration_reason||'falta de disponibilidad de transporte público regular'}. Declaro que la información consignada es verdadera y autorizo su uso como sustento interno del gasto de transporte.`}
+function declarationText(e,r){return `Yo, ${r.owner_name}, identificado con DNI N.° ${r.owner_dni}, DECLARO BAJO JURAMENTO que el día ${formatDate(e.entry_date)} realicé un gasto de ${money(e.amount)} por concepto de pasaje ${movementDetail(e)}, relacionado con mis traslados laborales para ${r.company_name}, RUC ${r.company_ruc}. El transportista no emitió boleta, factura ni otro comprobante de pago por dicho servicio. Motivo: ${e.declaration_reason||'falta de disponibilidad de transporte público regular'}. Declaro que la información consignada es verdadera y asumo responsabilidad por su contenido para fines de sustento y/o reembolso del gasto de transporte.`}
 
 async function urlToDataUrl(url){
   const res=await fetch(url);if(!res.ok)throw new Error('No se pudo cargar la evidencia')
@@ -301,7 +224,7 @@ async function entryImageData(e){
 function periodTitle(b){const r=b.report;return r.period_end?`${formatDate(r.period_start)} – ${formatDate(r.period_end)}`:`Desde ${formatDate(r.period_start)}`}
 
 async function downloadAllPdf(bundles){
-  const doc=new jsPDF({unit:'mm',format:'a4'});const navy=[23,50,77],green=[25,133,111],orange=[239,125,32];let first=true
+  const doc=new jsPDF({unit:'mm',format:'a4'});const navy=[23,50,77],red=[177,31,23],green=[25,133,111],orange=[239,125,32];let first=true
   for(const b of bundles){
     if(!first)doc.addPage();first=false
     const {report:r,summary:s,entries=[]}=b;const raw=Number(s.raw_balance??(s.received-s.spent))
@@ -310,7 +233,7 @@ async function downloadAllPdf(bundles){
     const labels=['RECIBIDO','GASTADO',r.is_closed?'AJUSTE DE CIERRE':'SALDO'];const vals=[money(s.received),money(s.spent),money(r.is_closed?Math.abs(raw):s.balance)]
     labels.forEach((x,i)=>{const x0=12+i*62;doc.setFillColor(233,243,250);doc.roundedRect(x0,50,58,21,3,3,'F');doc.setTextColor(70,85,96);doc.setFontSize(7);doc.text(x,x0+4,57);doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...(i===0?green:i===1?orange:navy));doc.text(vals[i],x0+4,67)})
     if(r.is_closed){doc.setTextColor(...green);doc.setFontSize(8);doc.text(`CUENTA LIQUIDADA · Saldo pendiente actual: S/ 0.00`,12,78)}
-    autoTable(doc,{startY:r.is_closed?83:78,head:[['Fecha','Tipo','Detalle','Monto','Sustento']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e)+(e.issue_time?` · ${e.issue_time}`:''),(e.entry_type==='credit'?'+':'−')+money(e.amount),isLost(e)?'Boleta extraviada':isShown(e)?'Ya mostrada':e.support_type?.includes('declaration')?'Declaración':e.support_type==='receipt'?'Boleta':'—']),headStyles:{fillColor:navy},styles:{fontSize:7,cellPadding:2},columnStyles:{3:{halign:'right'}}})
+    autoTable(doc,{startY:r.is_closed?83:78,head:[['Fecha','Tipo','Detalle','Monto','Sustento']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e)+(e.issue_time?` · ${e.issue_time}`:''),(e.entry_type==='credit'?'+':'−')+money(e.amount),isLost(e)?'Boleta extraviada':isShown(e)?'Ya mostrada':e.support_type?.includes('declaration')?'Declaración':e.support_type==='receipt'?'Boleta':'—']),headStyles:{fillColor:red},styles:{fontSize:7,cellPadding:2},columnStyles:{3:{halign:'right'}}})
   }
   for(const b of bundles){
     for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){
@@ -322,43 +245,8 @@ async function downloadAllPdf(bundles){
   doc.save('APC_Transporte_Consolidado.pdf')
 }
 function addDeclarationPdf(doc,e,r){
-  doc.addPage()
-  const navy=[23,50,77],green=[25,133,111],orange=[239,125,32],line=[216,226,231],soft=[247,250,251]
-  doc.setFillColor(...navy);doc.roundedRect(12,12,186,22,2,2,'F')
-  doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('DECLARACIÓN JURADA DE GASTO DE TRANSPORTE',105,22,{align:'center'})
-  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.text('APC CORPORACION S.A. · Sustento interno de movilidad',105,29,{align:'center'})
-  doc.setTextColor(...navy);doc.setFont('helvetica','bold');doc.setFontSize(8)
-  doc.text(`${r.owner_name} · DNI ${r.owner_dni}`,14,42)
-  doc.text(`${r.company_name} · RUC ${r.company_ruc}`,196,42,{align:'right'})
-  doc.setFillColor(...green);doc.rect(12,48,186,8,'F');doc.setTextColor(255);doc.text('DATOS DEL GASTO',105,53.5,{align:'center'})
-  autoTable(doc,{
-    startY:56,
-    body:[
-      ['Fecha del pasaje',formatDate(e.entry_date),'Monto pagado',money(e.amount)],
-      ['Origen',e.origin||'—','Destino',e.destination||'—'],
-      ['Ingeniero responsable',e.engineer_name||r.engineer_name||'—','Motivo',e.declaration_reason||'Servicio sin emisión de comprobante']
-    ],
-    theme:'grid',
-    styles:{fontSize:8,cellPadding:3,lineColor:line,lineWidth:.2,valign:'middle'},
-    columnStyles:{0:{fillColor:soft,fontStyle:'bold',cellWidth:35},1:{cellWidth:58},2:{fillColor:soft,fontStyle:'bold',cellWidth:35},3:{cellWidth:58}},
-    didParseCell(data){if(data.row.index===0&&data.column.index===3){data.cell.styles.textColor=green;data.cell.styles.fontStyle='bold'}}
-  })
-  let y=doc.lastAutoTable.finalY+8
-  doc.setFillColor(...green);doc.rect(12,y,186,8,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('DECLARACIÓN',105,y+5.5,{align:'center'})
-  y+=13
-  doc.setTextColor(31,41,55);doc.setFont('helvetica','normal');doc.setFontSize(9)
-  const lines=doc.splitTextToSize(declarationText(e,r),176);doc.text(lines,17,y,{maxWidth:176,lineHeightFactor:1.45})
-  y+=lines.length*5.1+7
-  doc.setFillColor(255,248,225);doc.setDrawColor(235,215,160);doc.roundedRect(16,y,178,13,2,2,'FD')
-  doc.setTextColor(85,67,28);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Lugar y fecha de firma',20,y+5)
-  doc.setFont('helvetica','normal');doc.text(e.declaration_place_date||'—',20,y+10)
-  y+=24
-  doc.setDrawColor(70,85,96);doc.line(24,y+20,88,y+20);doc.line(122,y+20,186,y+20)
-  if(e.signature_base64){try{doc.addImage(`data:image/png;base64,${e.signature_base64}`,'PNG',37,y-4,38,22)}catch{}}
-  doc.setTextColor(...navy);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text('FIRMA DEL TRABAJADOR',56,y+25,{align:'center'});doc.text('V.º B.º / FIRMA DEL ADMINISTRADOR',154,y+25,{align:'center'})
-  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(r.owner_name,56,y+30,{align:'center'});doc.text(e.engineer_name||r.engineer_name||'Administrador',154,y+30,{align:'center'})
+  doc.addPage();doc.setFillColor(23,50,77);doc.rect(12,12,186,16,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('DECLARACIÓN JURADA DE GASTO DE TRANSPORTE',105,22,{align:'center'});doc.setTextColor(31,41,55);doc.setFont('helvetica','normal');doc.setFontSize(9);const lines=doc.splitTextToSize(declarationText(e,r),180);doc.text(lines,15,45)
 }
-
 
 async function downloadAllExcel(bundles){
   const wb=new ExcelJS.Workbook();wb.creator='APC Corporacion';const ws=wb.addWorksheet('Reporte',{views:[{showGridLines:false}]});ws.columns=[{width:15},{width:14},{width:42},{width:16},{width:23}]
@@ -366,7 +254,7 @@ async function downloadAllExcel(bundles){
   for(const b of bundles){const r=b.report,s=b.summary,entries=b.entries||[],raw=Number(s.raw_balance??(s.received-s.spent));ws.mergeCells(row,1,row,5);let c=ws.getCell(row,1);c.value=r.is_closed?`CUENTA LIQUIDADA · ${periodTitle(b)}`:r.period_end?`REPORTE ENVIADO · ${periodTitle(b)}`:`REPORTE ACTUAL · ${periodTitle(b)}`;c.font={bold:true,color:{argb:'FFFFFFFF'},size:14};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};c.alignment={horizontal:'center'};row++
     ws.getRow(row).values=['Recibido',Number(s.received),'Gastado',Number(s.spent),r.is_closed?`Saldo liquidado S/ 0.00`:`Saldo ${money(s.balance)}`];ws.getRow(row).eachCell(x=>{x.border=border;x.alignment={vertical:'middle'}});ws.getCell(row,2).numFmt='"S/ "#,##0.00';ws.getCell(row,4).numFmt='"S/ "#,##0.00';row++
     if(r.is_closed){ws.mergeCells(row,1,row,5);ws.getCell(row,1).value=(raw>0?`Devolución al cierre: ${money(Math.abs(raw))}`:raw<0?`Regularización al cierre: ${money(Math.abs(raw))}`:'Sin ajuste de cierre')+' · Cuenta liquidada';ws.getCell(row,1).font={bold:true,color:{argb:'FF116B5A'}};row++}
-    const head=ws.getRow(row);head.values=['Fecha','Tipo','Detalle','Monto','Sustento'];head.eachCell(x=>{x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};x.border=border;x.alignment={horizontal:'center'}});row++
+    const head=ws.getRow(row);head.values=['Fecha','Tipo','Detalle','Monto','Sustento'];head.eachCell(x=>{x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFB11F17'}};x.border=border;x.alignment={horizontal:'center'}});row++
     entries.forEach(e=>{const rr=ws.getRow(row);rr.values=[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(e.issue_time?` · Hora ${e.issue_time}`:''),Number(e.amount),isLost(e)?'BOLETA EXTRAVIADA':isShown(e)?'YA MOSTRADA':e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':e.support_type==='receipt'?'BOLETA':'—'];rr.eachCell(x=>{x.border=border;x.alignment={vertical:'middle',wrapText:true}});rr.getCell(4).numFmt='"S/ "#,##0.00';row++});row+=2}
   const ev=wb.addWorksheet('Evidencias',{views:[{showGridLines:false}]});ev.columns=Array.from({length:8},()=>({width:15}));let er=1
   for(const b of bundles){for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){const data=await entryImageData(e).catch(()=>null);ev.mergeCells(er,1,er,8);let c=ev.getCell(er,1);c.value=`${e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':'BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)} · ${movementDetail(e)}`;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:e.support_type?.includes('declaration')?'FF17324D':'FF19856F'}};c.alignment={horizontal:'center'};er++
