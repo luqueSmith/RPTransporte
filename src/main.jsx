@@ -157,11 +157,17 @@ function App(){
           </div>
         </section>
 
-        <DateFilter dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} active={dateFilterActive} matches={matchCount}/>
+        {!current && <DateFilter dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} active={dateFilterActive} matches={matchCount}/>}
 
-        {current && periodHasMatches(current) && <>
+        {current && <>
           <div className="section-marker current-marker"><div className="marker-copy"><span>PERÍODO ACTUAL</span><small>{formatDate(current.report.period_start)} – hoy</small></div><b>Cuenta abierta</b></div>
-          <PeriodSection bundle={{...current,entries:filterEntries(current.entries)}} current filtered={dateFilterActive} onEvidence={(item)=>setModal({item,report:current.report})}/>
+          <PeriodSection
+            bundle={{...current,entries:filterEntries(current.entries)}}
+            current
+            filtered={dateFilterActive}
+            filterControl={<DateFilter dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} active={dateFilterActive} matches={matchCount}/>}
+            onEvidence={(item)=>setModal({item,report:current.report})}
+          />
           {current.report.status!=='draft' && <ReviewPanel bundle={current} onReview={review}/>} 
         </>}
 
@@ -185,15 +191,34 @@ function App(){
 }
 
 function DateFilter({dateFrom,dateTo,setDateFrom,setDateTo,active,matches}){
-  return <section className={`date-filter ${active?'active':''}`}>
-    <div className="date-filter-copy"><span className="filter-icon"><Filter size={18}/></span><div><strong>Filtrar por fecha</strong><small>Busca rápidamente movimientos de uno o varios días.</small></div></div>
-    <div className="date-filter-controls">
-      <label><span>Desde</span><input type="date" value={dateFrom} max={dateTo||undefined} onChange={e=>setDateFrom(e.target.value)}/></label>
-      <label><span>Hasta</span><input type="date" value={dateTo} min={dateFrom||undefined} onChange={e=>setDateTo(e.target.value)}/></label>
-      {active && <button className="clear-filter" onClick={()=>{setDateFrom('');setDateTo('')}}><X size={15}/> Limpiar</button>}
+  const ymd=d=>{const x=new Date(d);const y=x.getFullYear();const m=String(x.getMonth()+1).padStart(2,'0');const day=String(x.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
+  const today=()=>ymd(new Date())
+  const setToday=()=>{const t=today();setDateFrom(t);setDateTo(t)}
+  const setLast7=()=>{const end=new Date();const start=new Date();start.setDate(end.getDate()-6);setDateFrom(ymd(start));setDateTo(ymd(end))}
+  const setMonth=()=>{const end=new Date();const start=new Date(end.getFullYear(),end.getMonth(),1);setDateFrom(ymd(start));setDateTo(ymd(end))}
+  const openPicker=id=>{const el=document.getElementById(id);if(el?.showPicker)el.showPicker();else el?.focus()}
+  return <div className={`movement-date-filter ${active?'active':''}`}>
+    <div className="movement-filter-top">
+      <div className="movement-filter-label"><Filter size={16}/><div><strong>Filtrar por fecha</strong><span>Elige un día o un rango.</span></div></div>
+      {active && <div className="filter-result compact"><strong>{matches}</strong><span>{matches===1?'resultado':'resultados'}</span></div>}
     </div>
-    {active && <div className="filter-result"><strong>{matches}</strong><span>{matches===1?'movimiento encontrado':'movimientos encontrados'}</span></div>}
-  </section>
+    <div className="movement-filter-controls">
+      <div className="date-choice">
+        <span>Desde</span>
+        <div className="date-choice-row"><input id="date-from" type="date" value={dateFrom} max={dateTo||undefined} onClick={e=>e.currentTarget.showPicker?.()} onChange={e=>setDateFrom(e.target.value)}/><button type="button" onClick={()=>openPicker('date-from')}><CalendarDays size={15}/><b>Elegir</b></button></div>
+      </div>
+      <div className="date-choice">
+        <span>Hasta</span>
+        <div className="date-choice-row"><input id="date-to" type="date" value={dateTo} min={dateFrom||undefined} onClick={e=>e.currentTarget.showPicker?.()} onChange={e=>setDateTo(e.target.value)}/><button type="button" onClick={()=>openPicker('date-to')}><CalendarDays size={15}/><b>Elegir</b></button></div>
+      </div>
+    </div>
+    <div className="date-shortcuts" aria-label="Fechas rápidas">
+      <button type="button" onClick={setToday}>Hoy</button>
+      <button type="button" onClick={setLast7}>Últimos 7 días</button>
+      <button type="button" onClick={setMonth}>Este mes</button>
+      {active && <button type="button" className="clear" onClick={()=>{setDateFrom('');setDateTo('')}}><X size={13}/> Ver todo</button>}
+    </div>
+  </div>
 }
 
 function Login({pin,setPin,onLogin,loading,error,theme,setTheme}){
@@ -206,7 +231,7 @@ function Login({pin,setPin,onLogin,loading,error,theme,setTheme}){
   </div></div>
 }
 
-function PeriodSection({bundle,current=false,pending=false,filtered=false,collapsible=false,onEvidence}){
+function PeriodSection({bundle,current=false,pending=false,filtered=false,collapsible=false,filterControl=null,onEvidence}){
   const {report,summary,entries=[]}=bundle
   const status=statusMeta[report.status]||[report.status,'neutral']
   const period=report.period_end?`${longDate(report.period_start)} – ${longDate(report.period_end)}`:`Desde ${longDate(report.period_start)}`
@@ -224,21 +249,25 @@ function PeriodSection({bundle,current=false,pending=false,filtered=false,collap
     {!active && <div className="closure-note"><CheckCircle2 size={17}/><div><strong>Cuenta liquidada · saldo S/ 0.00</strong><span>{report.closure_note || (raw>0?'El saldo sobrante fue devuelto al finalizar el período.':raw<0?'La diferencia pendiente fue regularizada al finalizar el período.':'El período cerró sin saldo pendiente.')}</span></div></div>}
     {filtered && <div className="period-filter-note"><Filter size={14}/> Mostrando solo movimientos que coinciden con el filtro de fecha. Los totales superiores corresponden al período completo.</div>}
 
-    {collapsible ? <details className="closed-movements-details"><summary><span><CalendarDays size={16}/> Movimientos y sustentos</span><b>{entries.length} {entries.length===1?'registro':'registros'}</b><ChevronDown size={18}/></summary><div className="closed-movements-body"><MovementTable entries={entries} onEvidence={onEvidence}/></div></details> : <MovementTable entries={entries} onEvidence={onEvidence}/>}
+    {collapsible ? <details className="closed-movements-details"><summary><span><CalendarDays size={16}/> Movimientos y sustentos</span><b>{entries.length} {entries.length===1?'registro':'registros'}</b><ChevronDown size={18}/></summary><div className="closed-movements-body"><MovementTable entries={entries} onEvidence={onEvidence}/></div></details> : <MovementTable entries={entries} onEvidence={onEvidence} filterControl={filterControl}/>}
   </section>
 }
 
-function MovementTable({entries,onEvidence}){
+function MovementTable({entries,onEvidence,filterControl=null}){
   return <>
     <div className="movements-heading">
       <div className="movements-title">
         <span className="movements-icon"><WalletCards size={20}/></span>
         <div><span className="eyebrow">MOVIMIENTOS</span><h3>Detalle de transporte</h3><p>{entries.length} {entries.length===1?'movimiento registrado':'movimientos registrados'} en este período.</p></div>
       </div>
-      <div className="movement-legend"><span className="legend-credit"><ArrowDownLeft size={14}/> Dinero recibido</span><span className="legend-expense"><ArrowUpRight size={14}/> Gasto</span></div>
+      <div className="movements-tools">
+        <div className="movement-legend"><span className="legend-credit"><ArrowDownLeft size={14}/> Dinero recibido</span><span className="legend-expense"><ArrowUpRight size={14}/> Gasto</span></div>
+        {filterControl}
+      </div>
     </div>
 
     <div className="table-wrap movement-table-wrap"><table className="movement-table"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Ruta / detalle</th><th className="right">Monto</th><th>Sustento</th></tr></thead><tbody>
+      {!entries.length && <tr className="movement-empty-row"><td colSpan="5"><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></td></tr>}
       {entries.map(e=><tr key={e.id} className={`movement-row ${e.entry_type}`}>
         <td data-label="Fecha"><span className="date-chip"><CalendarDays size={15}/>{formatDate(e.entry_date)}</span></td>
         <td data-label="Movimiento"><span className={`type-pill ${e.entry_type}`}>{e.entry_type==='credit'?<ArrowDownLeft size={14}/>:<ArrowUpRight size={14}/>} {e.entry_type==='credit'?'Crédito':'Gasto'}</span></td>

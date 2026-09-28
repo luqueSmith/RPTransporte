@@ -1,0 +1,9 @@
+APC Transporte Web v1.9
+
+- El filtro por fecha ahora está integrado dentro del bloque "Movimientos / Detalle de transporte".
+- Se eliminó el bloque grande de filtro que ocupaba espacio encima del período actual.
+- Los campos Desde/Hasta se pueden abrir tocando el campo completo o el botón visible "Elegir" con icono de calendario.
+- Se añadieron accesos rápidos: Hoy, Últimos 7 días, Este mes y Ver todo.
+- El filtro sigue afectando al reporte actual y a los períodos anteriores.
+- Si se filtra una fecha antigua, el período actual sigue visible para que el administrador no pierda el filtro.
+- Mejoras responsivas para PC, tablet y móvil.
