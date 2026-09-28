@@ -207,3 +207,32 @@
   .date-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .date-shortcuts button{height:34px;justify-content:center;font-size:9px}
 }
+
+/* v1.10 · Filtro de fecha compacto: sin título ni accesos rápidos */
+.compact-date-filter{position:relative;padding:9px 10px}
+.compact-date-filter .movement-filter-controls{margin:0}
+.compact-date-filter.active{padding-right:38px}
+.filter-reset{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:27px;height:27px;border:1px solid color-mix(in srgb,var(--orange) 30%,var(--line));border-radius:50%;background:var(--soft-orange);color:var(--orange-dark);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.filter-reset:hover{border-color:var(--orange);transform:translateY(-50%) scale(1.04)}
+@media(max-width:620px){.compact-date-filter{padding:9px}.compact-date-filter.active{padding-right:9px;padding-top:42px}.filter-reset{right:10px;top:10px;transform:none}.filter-reset:hover{transform:scale(1.04)}}
+
+/* v1.11 · Filtro de fecha simple: sin título, sin accesos rápidos y con un solo botón de calendario */
+.simple-date-filter{width:min(620px,100%);padding:8px 9px}
+.simple-filter-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 38px;gap:7px;align-items:end;margin:0}
+.simple-date-choice{display:block;min-width:0}
+.simple-date-choice>span{display:block;margin:0 0 4px;font-size:8px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.simple-date-choice input{display:block;width:100%;min-width:0;height:36px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);color:var(--text);padding:0 10px;font:inherit;font-size:10px;outline:none;cursor:pointer}
+.simple-date-choice input:focus{border-color:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 13%,transparent)}
+.simple-date-choice input::-webkit-calendar-picker-indicator{opacity:0;width:0;padding:0;margin:0;pointer-events:none}
+.single-calendar-button{width:38px;height:36px;border:1px solid color-mix(in srgb,var(--green) 34%,var(--line));border-radius:9px;background:var(--soft-green);color:var(--green-dark);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.single-calendar-button:hover{border-color:var(--green);transform:translateY(-1px)}
+.simple-date-filter.active{padding-right:42px}
+.login-card .login-logo{margin-bottom:12px}
+.login-card .login-icon{display:none!important}
+@media(max-width:620px){
+  .simple-date-filter{width:100%;padding:8px}
+  .simple-date-filter.active{padding-right:8px;padding-top:40px}
+  .simple-filter-controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 38px;gap:6px}
+  .simple-date-choice input{height:39px;font-size:10px;padding:0 7px}
+  .single-calendar-button{height:39px;width:38px}
+}

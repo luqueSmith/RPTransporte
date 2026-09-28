@@ -1,0 +1,6 @@
+APC Transporte Web v1.10
+
+- Se eliminó el texto “Filtrar por fecha”.
+- Se eliminaron los accesos rápidos “Hoy”, “Últimos 7 días” y “Este mes”.
+- El selector de fecha queda más compacto dentro de Movimientos.
+- Cuando hay un filtro activo aparece un botón pequeño para quitarlo sin ocupar una fila adicional.

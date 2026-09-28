@@ -1,0 +1,6 @@
+APC Transporte Web v1.11
+- Eliminado el icono de escudo/check de la pantalla de acceso.
+- Filtro de fechas reducido a Desde + Hasta + un único botón de calendario.
+- Eliminados el título del filtro y los accesos Hoy / Últimos 7 días / Este mes.
+- Los campos completos de fecha siguen siendo pulsables para abrir el calendario.
+- Se mantiene la X de limpiar solo cuando existe un filtro activo.

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, CircleAlert, Download, Eye, FileSpreadsheet, FileText, Filter,
-  LogOut, MessageSquareText, MoonStar, RefreshCw, RotateCcw, Route, ShieldCheck, SunMedium, WalletCards, X
+  LogOut, MessageSquareText, MoonStar, RefreshCw, RotateCcw, Route, SunMedium, WalletCards, X
 } from 'lucide-react'
 import { getReport, listReports, login, reviewReport } from './supabase'
 import './styles.css'
@@ -190,40 +190,28 @@ function App(){
   </div>
 }
 
-function DateFilter({dateFrom,dateTo,setDateFrom,setDateTo,active,matches}){
-  const ymd=d=>{const x=new Date(d);const y=x.getFullYear();const m=String(x.getMonth()+1).padStart(2,'0');const day=String(x.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
-  const today=()=>ymd(new Date())
-  const setToday=()=>{const t=today();setDateFrom(t);setDateTo(t)}
-  const setLast7=()=>{const end=new Date();const start=new Date();start.setDate(end.getDate()-6);setDateFrom(ymd(start));setDateTo(ymd(end))}
-  const setMonth=()=>{const end=new Date();const start=new Date(end.getFullYear(),end.getMonth(),1);setDateFrom(ymd(start));setDateTo(ymd(end))}
+function DateFilter({dateFrom,dateTo,setDateFrom,setDateTo,active}){
   const openPicker=id=>{const el=document.getElementById(id);if(el?.showPicker)el.showPicker();else el?.focus()}
-  return <div className={`movement-date-filter ${active?'active':''}`}>
-    <div className="movement-filter-top">
-      <div className="movement-filter-label"><Filter size={16}/><div><strong>Filtrar por fecha</strong><span>Elige un día o un rango.</span></div></div>
-      {active && <div className="filter-result compact"><strong>{matches}</strong><span>{matches===1?'resultado':'resultados'}</span></div>}
-    </div>
-    <div className="movement-filter-controls">
-      <div className="date-choice">
+  const openNext=()=>openPicker(!dateFrom?'date-from':(!dateTo?'date-to':'date-from'))
+  return <div className={`movement-date-filter compact-date-filter simple-date-filter ${active?'active':''}`}>
+    {active && <button type="button" className="filter-reset" aria-label="Quitar filtro de fecha" title="Quitar filtro" onClick={()=>{setDateFrom('');setDateTo('')}}><X size={14}/></button>}
+    <div className="movement-filter-controls simple-filter-controls">
+      <label className="date-choice simple-date-choice">
         <span>Desde</span>
-        <div className="date-choice-row"><input id="date-from" type="date" value={dateFrom} max={dateTo||undefined} onClick={e=>e.currentTarget.showPicker?.()} onChange={e=>setDateFrom(e.target.value)}/><button type="button" onClick={()=>openPicker('date-from')}><CalendarDays size={15}/><b>Elegir</b></button></div>
-      </div>
-      <div className="date-choice">
+        <input id="date-from" type="date" value={dateFrom} max={dateTo||undefined} onClick={e=>e.currentTarget.showPicker?.()} onChange={e=>setDateFrom(e.target.value)}/>
+      </label>
+      <label className="date-choice simple-date-choice">
         <span>Hasta</span>
-        <div className="date-choice-row"><input id="date-to" type="date" value={dateTo} min={dateFrom||undefined} onClick={e=>e.currentTarget.showPicker?.()} onChange={e=>setDateTo(e.target.value)}/><button type="button" onClick={()=>openPicker('date-to')}><CalendarDays size={15}/><b>Elegir</b></button></div>
-      </div>
-    </div>
-    <div className="date-shortcuts" aria-label="Fechas rápidas">
-      <button type="button" onClick={setToday}>Hoy</button>
-      <button type="button" onClick={setLast7}>Últimos 7 días</button>
-      <button type="button" onClick={setMonth}>Este mes</button>
-      {active && <button type="button" className="clear" onClick={()=>{setDateFrom('');setDateTo('')}}><X size={13}/> Ver todo</button>}
+        <input id="date-to" type="date" value={dateTo} min={dateFrom||undefined} onClick={e=>e.currentTarget.showPicker?.()} onChange={e=>setDateTo(e.target.value)}/>
+      </label>
+      <button type="button" className="single-calendar-button" onClick={openNext} aria-label="Elegir fecha" title="Elegir fecha"><CalendarDays size={18}/></button>
     </div>
   </div>
 }
 
 function Login({pin,setPin,onLogin,loading,error,theme,setTheme}){
   return <div className="login-page"><button className="login-theme" onClick={()=>setTheme(theme==='dark'?'light':'dark')}>{theme==='dark'?<SunMedium size={19}/>:<MoonStar size={19}/>}<span>{theme==='dark'?'Modo día':'Modo noche'}</span></button><div className="login-card">
-    <ApcLogo className="login-logo"/><div className="login-icon"><ShieldCheck size={28}/></div>
+    <ApcLogo className="login-logo"/>
     <h1>Reporte de transporte</h1><p>Consulta el reporte actual, las cuentas liquidadas, boletas y declaraciones juradas.</p>
     <label>PIN de acceso</label><input autoFocus inputMode="numeric" value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>e.key==='Enter'&&onLogin()} placeholder="Ingresa el PIN"/>
     {error&&<div className="field-error">{error}</div>}
