@@ -12,3 +12,9 @@ Actualización enfocada en hacer el filtro de fechas más fácil de encontrar y 
 - Ajustes responsivos para PC, tablet y móvil.
 
 No requiere ejecutar SQL nuevo ni actualizar la APK.
+
+
+## v1.12 · Estado de entrega de boletas
+La columna Sustento muestra, solo para boletas, **Entregada** o **Pendiente de entregar**. El estado lo cambia el trabajador desde la APK v2.0 y se refleja al sincronizar.
+
+Antes de usar esta versión junto con la APK v2.0, ejecuta `ACTUALIZAR_SUPABASE_v1.8_BOLETAS_ENTREGADAS.sql` en Supabase.

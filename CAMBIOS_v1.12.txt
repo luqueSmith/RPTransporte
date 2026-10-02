@@ -1,0 +1,6 @@
+APC Transporte Web v1.12 · Boletas entregadas
+
+- Las boletas muestran claramente si están ENTREGADAS o PENDIENTES DE ENTREGAR.
+- El estado solo aparece en gastos con boleta; no se usa para declaraciones juradas ni créditos.
+- Las exportaciones PDF y Excel incluyen el estado de entrega de las boletas.
+- Requiere ejecutar ACTUALIZAR_SUPABASE_v1.8_BOLETAS_ENTREGADAS.sql antes de usar la APK v2.0.

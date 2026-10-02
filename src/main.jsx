@@ -31,6 +31,18 @@ const movementDetail = e => {
 const isLost = e => /extraviad|perdid|sustra/i.test(e.support_note || '')
 const isShown = e => /ya mostr/i.test(e.support_note || '')
 const canOpenSupport = e => !!(e.receipt_image_base64 || e.support_asset || e.support_type?.includes('declaration'))
+const hasReceipt = e => e?.entry_type==='expense' && !isLost(e) && (!!e.receipt_image_base64 || e.support_type?.includes('receipt') || isShown(e))
+const receiptDeliveryText = e => e?.receipt_delivered ? 'Entregada' : 'Pendiente de entregar'
+const supportExportLabel = e => {
+  if(e.entry_type==='credit') return '—'
+  if(isLost(e)) return 'Boleta extraviada'
+  if(isShown(e) && !canOpenSupport(e)) return `Ya mostrada${hasReceipt(e)?` · ${receiptDeliveryText(e)}`:''}`
+  const receipt=hasReceipt(e), declaration=e.support_type?.includes('declaration')
+  if(receipt && declaration) return `Boleta + declaración · ${receiptDeliveryText(e)}`
+  if(receipt) return `Boleta · ${receiptDeliveryText(e)}`
+  if(declaration) return 'Declaración jurada'
+  return '—'
+}
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const friendlyError = e => {
   const m = String(e?.message || e || '')
@@ -270,9 +282,11 @@ function MovementTable({entries,onEvidence,filterControl=null}){
 function SupportCell({item,onOpen}){
   if(item.entry_type==='credit') return <span className="muted">—</span>
   if(isLost(item)) return <span className="lost-badge"><AlertTriangle size={15}/> Boleta extraviada</span>
-  if(isShown(item) && !canOpenSupport(item)) return <span className="shown-badge"><CheckCircle2 size={15}/> Ya mostrada</span>
-  if(canOpenSupport(item)) return <button className={`support-btn ${item.support_type?.includes('declaration')?'declaration':''}`} onClick={onOpen}><Eye size={16}/>{item.support_type?.includes('declaration')?'Ver declaración':'Ver boleta'}</button>
-  return <span className="muted">Sin sustento</span>
+  const receipt=hasReceipt(item)
+  const delivery=receipt?<span className={`delivery-badge ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?<CheckCircle2 size={14}/>:<CircleAlert size={14}/>} {item.receipt_delivered?'Entregada':'Pendiente de entregar'}</span>:null
+  if(isShown(item) && !canOpenSupport(item)) return <span className="support-stack"><span className="shown-badge"><CheckCircle2 size={15}/> Ya mostrada</span>{delivery}</span>
+  if(canOpenSupport(item)) return <span className="support-stack"><button className={`support-btn ${item.support_type?.includes('declaration')?'declaration':''}`} onClick={onOpen}><Eye size={16}/>{item.support_type?.includes('declaration')?'Ver declaración':'Ver boleta'}</button>{delivery}</span>
+  return receipt?<span className="support-stack"><span className="shown-badge">Boleta registrada</span>{delivery}</span>:<span className="muted">Sin sustento</span>
 }
 
 function ReviewPanel({bundle,onReview}){
@@ -311,7 +325,7 @@ function EvidenceModal({item,report,onClose}){
   const src=item.receipt_image_base64?`data:${item.receipt_mime||'image/jpeg'};base64,${item.receipt_image_base64}`:item.support_asset?asset(item.support_asset):null
   const declaration=item.support_type?.includes('declaration')
   return <div className="modal-backdrop" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button>
-    <div className="modal-heading"><div><span>{declaration?'Declaración jurada':'Evidencia de boleta'}</span><strong>{formatDate(item.entry_date)} · {money(item.amount)} · {movementDetail(item)}</strong></div></div>
+    <div className="modal-heading"><div><span>{declaration?'Declaración jurada':'Evidencia de boleta'}</span><strong>{formatDate(item.entry_date)} · {money(item.amount)} · {movementDetail(item)}</strong>{hasReceipt(item)&&<small className={`modal-delivery ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?'BOLETA ENTREGADA AL ADMINISTRADOR':'BOLETA PENDIENTE DE ENTREGAR'}</small>}</div></div>
     {src ? <img className={`receipt-image ${declaration?'document-image':''}`} src={src}/> : declaration ? <DeclarationCard item={item} report={report}/> : <div className="empty-support">La evidencia no está guardada digitalmente.</div>}
   </div></div>
 }
@@ -401,12 +415,12 @@ async function downloadAllPdf(bundles){
     const labels=['RECIBIDO','GASTADO',r.is_closed?'AJUSTE DE CIERRE':'SALDO'];const vals=[money(s.received),money(s.spent),money(r.is_closed?Math.abs(raw):s.balance)]
     labels.forEach((x,i)=>{const x0=12+i*62;doc.setFillColor(233,243,250);doc.roundedRect(x0,50,58,21,3,3,'F');doc.setTextColor(70,85,96);doc.setFontSize(7);doc.text(x,x0+4,57);doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...(i===0?green:i===1?orange:navy));doc.text(vals[i],x0+4,67)})
     if(r.is_closed){doc.setTextColor(...green);doc.setFontSize(8);doc.text(`CUENTA LIQUIDADA · Saldo pendiente actual: S/ 0.00`,12,78)}
-    autoTable(doc,{startY:r.is_closed?83:78,head:[['Fecha','Tipo','Detalle','Monto','Sustento']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e)+(e.issue_time?` · ${e.issue_time}`:''),(e.entry_type==='credit'?'+':'−')+money(e.amount),isLost(e)?'Boleta extraviada':isShown(e)?'Ya mostrada':e.support_type?.includes('declaration')?'Declaración':e.support_type==='receipt'?'Boleta':'—']),headStyles:{fillColor:navy},styles:{fontSize:7,cellPadding:2},columnStyles:{3:{halign:'right'}}})
+    autoTable(doc,{startY:r.is_closed?83:78,head:[['Fecha','Tipo','Detalle','Monto','Sustento']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e)+(e.issue_time?` · ${e.issue_time}`:''),(e.entry_type==='credit'?'+':'−')+money(e.amount),supportExportLabel(e)]),headStyles:{fillColor:navy},styles:{fontSize:7,cellPadding:2},columnStyles:{3:{halign:'right'}}})
   }
   for(const b of bundles){
     for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){
       const data=await entryImageData(e).catch(()=>null);if(!data && e.support_type?.includes('declaration')){addDeclarationPdf(doc,e,b.report,autoTable);continue}if(!data)continue
-      doc.addPage();doc.setFillColor(...green);doc.rect(12,12,186,10,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(`${e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':'EVIDENCIA DE BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)}`,105,19,{align:'center'})
+      doc.addPage();doc.setFillColor(...green);doc.rect(12,12,186,10,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(`${e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':'EVIDENCIA DE BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)}${hasReceipt(e)?` · ${receiptDeliveryText(e).toUpperCase()}`:''}`,105,19,{align:'center'})
       try{const props=doc.getImageProperties(data);const maxW=174,maxH=250;const sc=Math.min(maxW/props.width,maxH/props.height);const w=props.width*sc,h=props.height*sc;doc.addImage(data,props.fileType||'JPEG',18+(174-w)/2,30,w,h)}catch{}
     }
   }
@@ -461,9 +475,9 @@ async function downloadAllExcel(bundles){
     ws.getRow(row).values=['Recibido',Number(s.received),'Gastado',Number(s.spent),r.is_closed?`Saldo liquidado S/ 0.00`:`Saldo ${money(s.balance)}`];ws.getRow(row).eachCell(x=>{x.border=border;x.alignment={vertical:'middle'}});ws.getCell(row,2).numFmt='"S/ "#,##0.00';ws.getCell(row,4).numFmt='"S/ "#,##0.00';row++
     if(r.is_closed){ws.mergeCells(row,1,row,5);ws.getCell(row,1).value=(raw>0?`Devolución al cierre: ${money(Math.abs(raw))}`:raw<0?`Regularización al cierre: ${money(Math.abs(raw))}`:'Sin ajuste de cierre')+' · Cuenta liquidada';ws.getCell(row,1).font={bold:true,color:{argb:'FF116B5A'}};row++}
     const head=ws.getRow(row);head.values=['Fecha','Tipo','Detalle','Monto','Sustento'];head.eachCell(x=>{x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};x.border=border;x.alignment={horizontal:'center'}});row++
-    entries.forEach(e=>{const rr=ws.getRow(row);rr.values=[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(e.issue_time?` · Hora ${e.issue_time}`:''),Number(e.amount),isLost(e)?'BOLETA EXTRAVIADA':isShown(e)?'YA MOSTRADA':e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':e.support_type==='receipt'?'BOLETA':'—'];rr.eachCell(x=>{x.border=border;x.alignment={vertical:'middle',wrapText:true}});rr.getCell(4).numFmt='"S/ "#,##0.00';row++});row+=2}
+    entries.forEach(e=>{const rr=ws.getRow(row);rr.values=[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(e.issue_time?` · Hora ${e.issue_time}`:''),Number(e.amount),supportExportLabel(e).toUpperCase()];rr.eachCell(x=>{x.border=border;x.alignment={vertical:'middle',wrapText:true}});rr.getCell(4).numFmt='"S/ "#,##0.00';row++});row+=2}
   const ev=wb.addWorksheet('Evidencias',{views:[{showGridLines:false}]});ev.columns=Array.from({length:8},()=>({width:15}));let er=1
-  for(const b of bundles){for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){const data=await entryImageData(e).catch(()=>null);ev.mergeCells(er,1,er,8);let c=ev.getCell(er,1);c.value=`${e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':'BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)} · ${movementDetail(e)}`;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:e.support_type?.includes('declaration')?'FF17324D':'FF19856F'}};c.alignment={horizontal:'center'};er++
+  for(const b of bundles){for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){const data=await entryImageData(e).catch(()=>null);ev.mergeCells(er,1,er,8);let c=ev.getCell(er,1);c.value=`${e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':'BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)} · ${movementDetail(e)}${hasReceipt(e)?` · ${receiptDeliveryText(e).toUpperCase()}`:''}`;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:e.support_type?.includes('declaration')?'FF17324D':'FF19856F'}};c.alignment={horizontal:'center'};er++
       if(data){try{const m=String(data).match(/^data:image\/(png|jpeg|jpg);base64,(.*)$/i);if(m){const id=wb.addImage({base64:m[2],extension:m[1].toLowerCase()==='png'?'png':'jpeg'});ev.addImage(id,{tl:{col:1,row:er-1},ext:{width:430,height:570}});er+=31}}catch{er+=2}}else{ev.mergeCells(er,1,er+4,8);ev.getCell(er,1).value=declarationText(e,b.report);ev.getCell(er,1).alignment={wrapText:true,vertical:'middle'};er+=6}er+=2}}
   const buffer=await wb.xlsx.writeBuffer();saveAs(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'APC_Transporte_Consolidado.xlsx')
 }
