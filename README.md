@@ -1,3 +1,9 @@
+## v1.13 · Tabla de movimientos más amigable
+
+- Reorganiza la tabla para que un usuario común entienda rápidamente qué ocurrió, cuánto dinero entró o salió y qué comprobante existe.
+- Reduce las columnas a Fecha, Qué se registró, Importe y Comprobante / entrega.
+- En móvil cada registro se muestra como una tarjeta clara y ordenada.
+
 # APC Transporte Web v1.9
 
 Actualización enfocada en hacer el filtro de fechas más fácil de encontrar y usar.

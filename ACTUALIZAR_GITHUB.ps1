@@ -27,7 +27,7 @@ New-Item -ItemType File -Path "$repo\docs\.nojekyll" -Force | Out-Null
 git add -A
 $changes = git status --porcelain
 if ($changes) {
-  git commit -m "Estado de entrega de boletas APC Transporte v$version"
+  git commit -m "Mejora tabla de movimientos APC Transporte v$version"
   git push
   Write-Host "Actualizacion enviada a GitHub correctamente." -ForegroundColor Green
 } else {

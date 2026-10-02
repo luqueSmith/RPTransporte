@@ -1,0 +1,10 @@
+APC Transporte Web v1.13
+
+- Tabla de movimientos reorganizada para lectura más sencilla.
+- Se reducen las columnas de 5 a 4: Fecha, Qué se registró, Importe, Comprobante / entrega.
+- Cada movimiento explica claramente si suma o resta del saldo.
+- Los créditos muestran "Dinero recibido" y los gastos "Pasaje / transporte".
+- El monto muestra SUMA o RESTA además del signo + / -.
+- Comprobante y estado de entrega quedan agrupados en una sola sección.
+- En móvil cada fila se convierte en una tarjeta: fecha y monto arriba, detalle al centro y comprobante abajo.
+- Se mantiene el diseño APC, filtros, modo noche/día y funcionalidad existente.

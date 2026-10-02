@@ -258,32 +258,52 @@ function MovementTable({entries,onEvidence,filterControl=null}){
     <div className="movements-heading">
       <div className="movements-title">
         <span className="movements-icon"><WalletCards size={20}/></span>
-        <div><span className="eyebrow">MOVIMIENTOS</span><h3>Detalle de transporte</h3><p>{entries.length} {entries.length===1?'movimiento registrado':'movimientos registrados'} en este período.</p></div>
+        <div>
+          <span className="eyebrow">MOVIMIENTOS</span>
+          <h3>Detalle de transporte</h3>
+          <p>{entries.length} {entries.length===1?'registro':'registros'} · Cada fila indica qué ocurrió, cuánto fue y qué documento lo sustenta.</p>
+        </div>
       </div>
       <div className="movements-tools">
-        <div className="movement-legend"><span className="legend-credit"><ArrowDownLeft size={14}/> Dinero recibido</span><span className="legend-expense"><ArrowUpRight size={14}/> Gasto</span></div>
+        <div className="movement-legend" aria-label="Leyenda de movimientos">
+          <span className="legend-credit"><ArrowDownLeft size={14}/> Dinero recibido (+)</span>
+          <span className="legend-expense"><ArrowUpRight size={14}/> Pasaje / gasto (−)</span>
+        </div>
         {filterControl}
       </div>
     </div>
 
-    <div className="table-wrap movement-table-wrap"><table className="movement-table"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Ruta / detalle</th><th className="right">Monto</th><th>Sustento</th></tr></thead><tbody>
-      {!entries.length && <tr className="movement-empty-row"><td colSpan="5"><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></td></tr>}
-      {entries.map(e=><tr key={e.id} className={`movement-row ${e.entry_type}`}>
-        <td data-label="Fecha"><span className="date-chip"><CalendarDays size={15}/>{formatDate(e.entry_date)}</span></td>
-        <td data-label="Movimiento"><span className={`type-pill ${e.entry_type}`}>{e.entry_type==='credit'?<ArrowDownLeft size={14}/>:<ArrowUpRight size={14}/>} {e.entry_type==='credit'?'Crédito':'Gasto'}</span></td>
-        <td data-label="Ruta / detalle"><div className="detail-cell"><span className="route-icon"><Route size={16}/></span><div><strong className="mobile-detail">{movementDetail(e)}</strong>{e.issue_time&&<span className="subline">Hora: {e.issue_time}</span>}</div></div></td>
-        <td data-label="Monto" className={`right amount ${e.entry_type}`}><span className="amount-box">{e.entry_type==='credit'?'+':'−'}{money(e.amount)}</span></td>
-        <td data-label="Sustento"><SupportCell item={e} onOpen={()=>onEvidence(e)}/></td>
-      </tr>)}
+    <div className="movement-help"><span className="movement-help-credit">+ suma al saldo</span><span className="movement-help-expense">− descuenta del saldo</span><span>En “Comprobante” puedes revisar la boleta o declaración y ver si la boleta física ya fue entregada.</span></div>
+
+    <div className="table-wrap movement-table-wrap"><table className="movement-table friendly-movement-table"><thead><tr><th>Fecha</th><th>Qué se registró</th><th className="right">Importe</th><th>Comprobante / entrega</th></tr></thead><tbody>
+      {!entries.length && <tr className="movement-empty-row"><td colSpan="4"><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></td></tr>}
+      {entries.map(e=>{
+        const isCredit=e.entry_type==='credit'
+        return <tr key={e.id} className={`movement-row ${e.entry_type}`}>
+          <td data-label="Fecha" className="movement-date-cell"><span className="date-chip"><CalendarDays size={15}/>{formatDate(e.entry_date)}</span></td>
+          <td data-label="Qué se registró" className="movement-concept-cell">
+            <div className="movement-concept">
+              <span className={`type-pill ${e.entry_type}`}>{isCredit?<ArrowDownLeft size={14}/>:<ArrowUpRight size={14}/>} {isCredit?'RECIBIDO':'GASTO'}</span>
+              <div className="movement-concept-copy">
+                <strong>{isCredit?'Dinero recibido':'Pasaje / transporte'}</strong>
+                <span className="movement-description">{movementDetail(e)}</span>
+                {e.issue_time&&<span className="subline">Hora registrada: {e.issue_time}</span>}
+              </div>
+            </div>
+          </td>
+          <td data-label="Importe" className={`right amount ${e.entry_type} movement-amount-cell`}><span className="amount-box"><small>{isCredit?'SUMA':'RESTA'}</small><b>{isCredit?'+':'−'}{money(e.amount)}</b></span></td>
+          <td data-label="Comprobante / entrega" className="movement-support-cell"><SupportCell item={e} onOpen={()=>onEvidence(e)}/></td>
+        </tr>
+      })}
     </tbody></table></div>
   </>
 }
 
 function SupportCell({item,onOpen}){
-  if(item.entry_type==='credit') return <span className="muted">—</span>
+  if(item.entry_type==='credit') return <span className="not-applicable">No corresponde</span>
   if(isLost(item)) return <span className="lost-badge"><AlertTriangle size={15}/> Boleta extraviada</span>
   const receipt=hasReceipt(item)
-  const delivery=receipt?<span className={`delivery-badge ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?<CheckCircle2 size={14}/>:<CircleAlert size={14}/>} {item.receipt_delivered?'Entregada':'Pendiente de entregar'}</span>:null
+  const delivery=receipt?<span className={`delivery-badge ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?<CheckCircle2 size={14}/>:<CircleAlert size={14}/>} {item.receipt_delivered?'Boleta entregada':'Boleta pendiente'}</span>:null
   if(isShown(item) && !canOpenSupport(item)) return <span className="support-stack"><span className="shown-badge"><CheckCircle2 size={15}/> Ya mostrada</span>{delivery}</span>
   if(canOpenSupport(item)) return <span className="support-stack"><button className={`support-btn ${item.support_type?.includes('declaration')?'declaration':''}`} onClick={onOpen}><Eye size={16}/>{item.support_type?.includes('declaration')?'Ver declaración':'Ver boleta'}</button>{delivery}</span>
   return receipt?<span className="support-stack"><span className="shown-badge">Boleta registrada</span>{delivery}</span>:<span className="muted">Sin sustento</span>
