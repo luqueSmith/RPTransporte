@@ -336,13 +336,13 @@
 }
 .spreadsheet-table thead th:last-child{border-right:0}
 .spreadsheet-table thead th.right{text-align:right}
-.spreadsheet-table .col-number{width:54px;text-align:center}
+.spreadsheet-table .col-number{width:42px;text-align:center}
 .spreadsheet-table .col-date{width:145px}
 .spreadsheet-table .col-type{width:135px}
 .spreadsheet-table .col-detail{width:auto}
 .spreadsheet-table .col-time{width:105px}
-.spreadsheet-table .col-amount{width:130px}
-.spreadsheet-table .col-support{width:230px}
+.spreadsheet-table .col-amount{width:112px}
+.spreadsheet-table .col-support{width:205px}
 
 .spreadsheet-table tbody{display:table-row-group}
 .spreadsheet-table tbody tr{
@@ -377,17 +377,11 @@
 
 .movement-number-cell{text-align:center!important}
 .row-number{
-  display:inline-flex;
-  width:25px;
-  height:25px;
-  align-items:center;
-  justify-content:center;
-  border-radius:6px;
-  background:var(--surface-2);
+  display:inline;
   color:var(--muted);
-  border:1px solid var(--line);
-  font-size:9px;
+  font-size:9.5px;
   font-weight:900;
+  font-variant-numeric:tabular-nums;
 }
 .spreadsheet-table .date-chip{
   display:inline-flex;
@@ -413,18 +407,58 @@
   display:inline-flex;
   align-items:center;
   justify-content:flex-end;
-  padding:5px 8px;
-  border-radius:7px;
-  border:1px solid transparent;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent!important;
+  box-shadow:none;
 }
-.spreadsheet-table .amount-box b{font-size:10.5px;white-space:nowrap;font-weight:950}
-.spreadsheet-table .movement-amount-cell.credit .amount-box{background:var(--soft-green);border-color:color-mix(in srgb,var(--green) 22%,var(--line));color:var(--green-dark)}
-.spreadsheet-table .movement-amount-cell.expense .amount-box{background:var(--soft-orange);border-color:color-mix(in srgb,var(--orange) 22%,var(--line));color:var(--orange-dark)}
+.spreadsheet-table .amount-box b{font-size:11px;white-space:nowrap;font-weight:950;font-variant-numeric:tabular-nums}
+.spreadsheet-table .movement-amount-cell.credit .amount-box{background:transparent!important;border:0;color:var(--green-dark)}
+.spreadsheet-table .movement-amount-cell.expense .amount-box{background:transparent!important;border:0;color:var(--orange-dark)}
+:root[data-theme="dark"] .spreadsheet-table .movement-amount-cell.credit .amount-box{color:#6fe1bd}
+:root[data-theme="dark"] .spreadsheet-table .movement-amount-cell.expense .amount-box{color:#ffb466}
 .spreadsheet-table .movement-support-cell{padding-right:10px}
-.spreadsheet-table .support-stack{gap:5px;align-items:flex-start}
-.spreadsheet-table .support-btn{min-width:108px;padding:7px 9px;font-size:9px}
-.spreadsheet-table .delivery-badge,.spreadsheet-table .shown-badge,.spreadsheet-table .lost-badge,.spreadsheet-table .not-applicable{font-size:8px;padding:5px 7px}
+.spreadsheet-table .support-stack{gap:4px;align-items:flex-start}
+.spreadsheet-table .support-btn{
+  min-width:0;
+  padding:3px 0;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  font-size:9px;
+  font-weight:900;
+  color:var(--green-dark);
+  justify-content:flex-start;
+}
+.spreadsheet-table .support-btn.declaration{color:var(--orange-dark)}
+.spreadsheet-table .support-btn:hover{transform:none;text-decoration:underline}
+.spreadsheet-table .delivery-badge,
+.spreadsheet-table .shown-badge,
+.spreadsheet-table .lost-badge,
+.spreadsheet-table .not-applicable{
+  font-size:8.5px;
+  padding:2px 0;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.spreadsheet-table .delivery-badge.delivered,.spreadsheet-table .shown-badge{color:var(--green-dark)}
+.spreadsheet-table .delivery-badge.pending{color:var(--orange-dark)}
+.spreadsheet-table .lost-badge{color:var(--red)}
+.spreadsheet-table .not-applicable{color:var(--muted)}
 .mobile-table-hint{display:none}
+
+/* v1.15: proporciones más cercanas a una hoja de Excel. */
+.friendly-movement-table.spreadsheet-table thead th.col-number{width:42px!important}
+.friendly-movement-table.spreadsheet-table thead th.col-date{width:145px!important}
+.friendly-movement-table.spreadsheet-table thead th.col-type{width:135px!important}
+.friendly-movement-table.spreadsheet-table thead th.col-detail{width:auto!important}
+.friendly-movement-table.spreadsheet-table thead th.col-time{width:105px!important}
+.friendly-movement-table.spreadsheet-table thead th.col-amount{width:112px!important}
+.friendly-movement-table.spreadsheet-table thead th.col-support{width:205px!important}
 
 /* La cuadrícula se mantiene como tabla también en móvil; se desplaza horizontalmente como una hoja de Excel. */
 @media(max-width:620px){
@@ -467,16 +501,16 @@
   .spreadsheet-table .movement-number-cell{text-align:center!important}
   .spreadsheet-table .movement-amount-cell{text-align:right!important}
   .spreadsheet-table thead th.right{text-align:right!important}
-  .spreadsheet-table .col-number{width:50px}
+  .spreadsheet-table .col-number{width:40px!important}
   .spreadsheet-table .col-date{width:125px}
   .spreadsheet-table .col-type{width:120px}
   .spreadsheet-table .col-detail{width:235px}
   .spreadsheet-table .col-time{width:85px}
-  .spreadsheet-table .col-amount{width:115px}
-  .spreadsheet-table .col-support{width:190px}
+  .spreadsheet-table .col-amount{width:105px!important}
+  .spreadsheet-table .col-support{width:180px!important}
   .spreadsheet-table .movement-type-cell .type-pill{min-width:80px}
   .spreadsheet-table .support-stack{display:flex!important;flex-direction:column!important;align-items:flex-start!important;flex-wrap:nowrap!important;width:auto!important}
-  .spreadsheet-table .support-btn{width:auto!important;min-width:100px!important}
+  .spreadsheet-table .support-btn{width:auto!important;min-width:0!important}
   .mobile-table-hint{
     display:block;
     position:sticky;

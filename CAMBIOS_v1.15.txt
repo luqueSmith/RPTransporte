@@ -1,0 +1,8 @@
+APC Transporte Web v1.15 — Tabla profesional
+
+- La columna N.º ahora es compacta y proporcional al contenido.
+- Los números de fila dejan de verse como botones/cuadros.
+- Importe se muestra como valor contable limpio, sin recuadro.
+- Comprobante / entrega se presenta como acciones y estados de texto con iconos, sin píldoras ni cajas innecesarias.
+- Se mantienen colores APC, alternancia de filas, modo claro/oscuro y desplazamiento horizontal en móvil.
+- No se modificó la lógica de Supabase, filtros, cálculos, boletas ni declaraciones.
