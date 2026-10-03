@@ -1,0 +1,7 @@
+APC Transporte Web v1.17
+
+- Se conserva SIN CAMBIOS la tabla de escritorio de v1.16.
+- En teléfonos (<= 620 px) se reemplaza la tabla horizontal por una vista móvil dedicada.
+- Cada movimiento aparece en un cuadro claro con: número, fecha, tipo, ruta/detalle, hora, importe y comprobante/entrega.
+- Ya no es necesario desplazar horizontalmente la tabla en móvil.
+- Se mantienen filtros, Supabase, boletas, declaraciones y estados de entrega.

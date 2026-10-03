@@ -275,41 +275,77 @@ function MovementTable({entries,onEvidence,filterControl=null}){
 
     <div className="movement-help"><span className="movement-help-credit">+ suma al saldo</span><span className="movement-help-expense">− descuenta del saldo</span><span>En “Comprobante” puedes revisar la boleta o declaración y ver si la boleta física ya fue entregada.</span></div>
 
-    <div className="table-wrap movement-table-wrap spreadsheet-wrap">
-      <table className="movement-table friendly-movement-table spreadsheet-table">
-        <thead>
-          <tr>
-            <th className="col-number">N.º</th>
-            <th className="col-date">Fecha</th>
-            <th className="col-type">Movimiento</th>
-            <th className="col-detail">Detalle / ruta</th>
-            <th className="col-time">Hora</th>
-            <th className="right col-amount">Importe</th>
-            <th className="col-support">Comprobante / entrega</th>
-          </tr>
-        </thead>
-        <tbody>
-          {!entries.length && <tr className="movement-empty-row"><td colSpan="7"><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></td></tr>}
-          {entries.map((e,index)=>{
-            const isCredit=e.entry_type==='credit'
-            return <tr key={e.id} className={`movement-row ${e.entry_type}`}>
-              <td data-label="N.º" className="movement-number-cell"><span className="row-number">{index+1}</span></td>
-              <td data-label="Fecha" className="movement-date-cell"><span className="date-chip"><CalendarDays size={14}/>{formatDate(e.entry_date)}</span></td>
-              <td data-label="Movimiento" className="movement-type-cell"><span className={`type-pill ${e.entry_type}`}>{isCredit?<ArrowDownLeft size={13}/>:<ArrowUpRight size={13}/>} {isCredit?'RECIBIDO':'GASTO'}</span></td>
-              <td data-label="Detalle / ruta" className="movement-detail-cell">
-                <div className="table-detail-copy">
-                  <strong>{isCredit?'Dinero recibido':'Pasaje / transporte'}</strong>
-                  <span>{movementDetail(e)}</span>
-                </div>
-              </td>
-              <td data-label="Hora" className="movement-time-cell"><span className="table-time">{e.issue_time||'—'}</span></td>
-              <td data-label="Importe" className={`right amount ${e.entry_type} movement-amount-cell`}><span className="amount-box"><b>{isCredit?'+':'−'}{money(e.amount)}</b></span></td>
-              <td data-label="Comprobante / entrega" className="movement-support-cell"><SupportCell item={e} onOpen={()=>onEvidence(e)}/></td>
+    <div className="desktop-movement-table">
+      <div className="table-wrap movement-table-wrap spreadsheet-wrap">
+        <table className="movement-table friendly-movement-table spreadsheet-table">
+          <thead>
+            <tr>
+              <th className="col-number">N.º</th>
+              <th className="col-date">Fecha</th>
+              <th className="col-type">Movimiento</th>
+              <th className="col-detail">Detalle / ruta</th>
+              <th className="col-time">Hora</th>
+              <th className="right col-amount">Importe</th>
+              <th className="col-support">Comprobante / entrega</th>
             </tr>
-          })}
-        </tbody>
-      </table>
-      <div className="mobile-table-hint">Desliza horizontalmente para ver todas las columnas.</div>
+          </thead>
+          <tbody>
+            {!entries.length && <tr className="movement-empty-row"><td colSpan="7"><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></td></tr>}
+            {entries.map((e,index)=>{
+              const isCredit=e.entry_type==='credit'
+              return <tr key={e.id} className={`movement-row ${e.entry_type}`}>
+                <td data-label="N.º" className="movement-number-cell"><span className="row-number">{index+1}</span></td>
+                <td data-label="Fecha" className="movement-date-cell"><span className="date-chip"><CalendarDays size={14}/>{formatDate(e.entry_date)}</span></td>
+                <td data-label="Movimiento" className="movement-type-cell"><span className={`type-pill ${e.entry_type}`}>{isCredit?<ArrowDownLeft size={13}/>:<ArrowUpRight size={13}/>} {isCredit?'RECIBIDO':'GASTO'}</span></td>
+                <td data-label="Detalle / ruta" className="movement-detail-cell">
+                  <div className="table-detail-copy">
+                    <strong>{isCredit?'Dinero recibido':'Pasaje / transporte'}</strong>
+                    <span>{movementDetail(e)}</span>
+                  </div>
+                </td>
+                <td data-label="Hora" className="movement-time-cell"><span className="table-time">{e.issue_time||'—'}</span></td>
+                <td data-label="Importe" className={`right amount ${e.entry_type} movement-amount-cell`}><span className="amount-box"><b>{isCredit?'+':'−'}{money(e.amount)}</b></span></td>
+                <td data-label="Comprobante / entrega" className="movement-support-cell"><SupportCell item={e} onOpen={()=>onEvidence(e)}/></td>
+              </tr>
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div className="mobile-movement-list" aria-label="Movimientos de transporte">
+      {!entries.length && <div className="mobile-movement-empty"><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></div>}
+      {entries.map((e,index)=>{
+        const isCredit=e.entry_type==='credit'
+        return <article key={`mobile-${e.id}`} className={`mobile-movement-card ${e.entry_type}`}>
+          <div className="mobile-movement-card-head">
+            <span className="mobile-row-number">{index+1}</span>
+            <span className="mobile-card-date"><CalendarDays size={15}/>{formatDate(e.entry_date)}</span>
+            <span className={`mobile-card-type ${e.entry_type}`}>{isCredit?<ArrowDownLeft size={14}/>:<ArrowUpRight size={14}/>} {isCredit?'RECIBIDO':'GASTO'}</span>
+          </div>
+
+          <div className="mobile-card-detail">
+            <span className="mobile-field-label">{isCredit?'Detalle':'Ruta / detalle'}</span>
+            <strong>{movementDetail(e)}</strong>
+          </div>
+
+          <div className="mobile-card-summary">
+            <div className="mobile-summary-cell">
+              <span>Hora</span>
+              <strong>{e.issue_time||'—'}</strong>
+            </div>
+            <div className={`mobile-summary-cell mobile-summary-amount ${e.entry_type}`}>
+              <span>Importe</span>
+              <strong>{isCredit?'+':'−'}{money(e.amount)}</strong>
+            </div>
+          </div>
+
+          <div className="mobile-card-support">
+            <span className="mobile-field-label">Comprobante / entrega</span>
+            <SupportCell item={e} onOpen={()=>onEvidence(e)}/>
+          </div>
+        </article>
+      })}
     </div>
   </>
 }
