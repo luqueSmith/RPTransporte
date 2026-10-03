@@ -1,0 +1,8 @@
+APC Transporte Web v1.16
+
+- Login más alto y con proporciones más naturales.
+- Mayor separación visual entre logo, título, descripción, PIN y botón.
+- En móvil se corrigió el encabezado de la tabla para que vuelva a verse azul APC.
+- Tabla móvil más compacta y con anchos de columna equilibrados.
+- N.º y Fecha quedan congelados al desplazar horizontalmente, similar a Excel.
+- Se mantiene el diseño profesional de escritorio y toda la lógica existente.

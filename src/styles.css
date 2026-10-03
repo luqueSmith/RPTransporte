@@ -525,3 +525,204 @@
     border-top:1px solid var(--line);
   }
 }
+
+
+/* ==========================================================
+   v1.16 · Login con proporciones más naturales + tabla móvil
+   ========================================================== */
+
+/* LOGIN: más alto, respirado y con presencia de pantalla de acceso real */
+.login-page{
+  min-height:100dvh;
+  padding:clamp(24px,4vh,48px) 20px;
+}
+.login-card{
+  width:min(500px,100%);
+  min-height:520px;
+  padding:40px 36px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  background:color-mix(in srgb,var(--surface) 97%,transparent);
+}
+.login-logo{
+  width:min(285px,82%);
+  height:118px;
+  margin:0 auto 18px;
+}
+.login-card h1{
+  font-size:27px;
+  margin:6px 0 9px;
+}
+.login-card p{
+  max-width:390px;
+  margin:0 auto 28px;
+  font-size:13px;
+  line-height:1.6;
+}
+.login-card label{
+  margin-top:2px;
+  margin-bottom:7px;
+}
+.login-card input{
+  min-height:52px;
+  font-size:15px;
+}
+.login-card .wide{
+  min-height:50px;
+  margin-top:14px;
+}
+
+/* TABLA EN MÓVIL:
+   conserva sensación de Excel, corrige encabezado y compacta anchos.
+   Las primeras dos columnas quedan "congeladas" para no perder contexto. */
+@media(max-width:620px){
+  .login-page{
+    align-items:center;
+    padding:70px 14px 24px;
+  }
+  .login-card{
+    width:100%;
+    max-width:430px;
+    min-height:540px;
+    padding:32px 22px 30px;
+    border-radius:24px;
+  }
+  .login-logo{
+    width:min(245px,82%);
+    height:104px;
+    margin-bottom:16px;
+  }
+  .login-card h1{font-size:24px}
+  .login-card p{
+    font-size:12px;
+    max-width:330px;
+    margin-bottom:24px;
+  }
+
+  .movement-table-wrap.spreadsheet-wrap{
+    position:relative;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    border:1px solid var(--line)!important;
+    border-radius:14px!important;
+    background:var(--surface)!important;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+
+  .spreadsheet-table{
+    min-width:735px!important;
+    width:735px!important;
+    table-layout:fixed!important;
+    border-collapse:separate!important;
+    border-spacing:0!important;
+  }
+
+  /* El encabezado vuelve a ser visible y oscuro en móvil. */
+  .spreadsheet-table thead th{
+    display:table-cell!important;
+    background:linear-gradient(180deg,var(--table-head),color-mix(in srgb,var(--table-head) 88%,#000))!important;
+    color:#fff!important;
+    border-right:1px solid rgba(255,255,255,.16)!important;
+    border-bottom:2px solid color-mix(in srgb,var(--green) 65%,#fff)!important;
+    padding:10px 7px!important;
+    font-size:8.3px!important;
+    line-height:1.1;
+    white-space:nowrap;
+    vertical-align:middle;
+  }
+
+  .spreadsheet-table tbody td{
+    padding:10px 7px!important;
+    font-size:9.5px!important;
+    vertical-align:middle!important;
+  }
+
+  /* Proporciones móviles más razonables */
+  .friendly-movement-table.spreadsheet-table thead th.col-number,
+  .spreadsheet-table .col-number{width:32px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-date,
+  .spreadsheet-table .col-date{width:96px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-type,
+  .spreadsheet-table .col-type{width:102px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-detail,
+  .spreadsheet-table .col-detail{width:178px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-time,
+  .spreadsheet-table .col-time{width:70px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-amount,
+  .spreadsheet-table .col-amount{width:88px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-support,
+  .spreadsheet-table .col-support{width:169px!important}
+
+  .spreadsheet-table .movement-type-cell .type-pill{
+    min-width:0!important;
+    width:88px;
+    padding:6px 5px;
+    font-size:7.8px;
+  }
+  .spreadsheet-table .date-chip{
+    gap:5px;
+    font-size:9px;
+  }
+  .spreadsheet-table .date-chip svg{
+    width:13px;
+    height:13px;
+  }
+  .table-detail-copy strong{font-size:7.8px}
+  .table-detail-copy span{
+    font-size:9px;
+    line-height:1.22;
+  }
+  .table-time{font-size:9px}
+  .spreadsheet-table .amount-box b{font-size:9.5px}
+  .spreadsheet-table .support-btn{font-size:8.2px}
+  .spreadsheet-table .delivery-badge,
+  .spreadsheet-table .shown-badge,
+  .spreadsheet-table .lost-badge,
+  .spreadsheet-table .not-applicable{font-size:7.8px}
+
+  /* "Freeze panes" al estilo Excel: N.º y fecha visibles al desplazarse. */
+  .spreadsheet-table thead th.col-number,
+  .spreadsheet-table tbody td.movement-number-cell{
+    position:sticky;
+    left:0;
+    z-index:4;
+  }
+  .spreadsheet-table thead th.col-date,
+  .spreadsheet-table tbody td.movement-date-cell{
+    position:sticky;
+    left:32px;
+    z-index:3;
+    box-shadow:1px 0 0 var(--line),5px 0 8px rgba(23,50,77,.04);
+  }
+  .spreadsheet-table thead th.col-number,
+  .spreadsheet-table thead th.col-date{
+    z-index:7;
+    background:var(--table-head)!important;
+  }
+
+  /* Mantener el fondo correcto de celdas congeladas en filas alternas. */
+  .spreadsheet-table tbody td.movement-number-cell,
+  .spreadsheet-table tbody td.movement-date-cell{
+    background:var(--surface)!important;
+  }
+  .spreadsheet-table tbody tr:nth-child(even) td.movement-number-cell,
+  .spreadsheet-table tbody tr:nth-child(even) td.movement-date-cell{
+    background:var(--row-alt)!important;
+  }
+
+  .mobile-table-hint{
+    display:block!important;
+    position:sticky;
+    left:0;
+    width:max-content;
+    max-width:calc(100vw - 44px);
+    padding:8px 10px;
+    color:var(--muted);
+    font-size:8.5px;
+    font-weight:800;
+    background:var(--surface-2);
+    border-top:1px solid var(--line);
+  }
+}
