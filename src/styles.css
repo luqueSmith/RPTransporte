@@ -302,3 +302,192 @@
   .friendly-movement-table .support-btn{min-width:0;width:auto}
   .friendly-movement-table .movement-support-cell:before{content:"Comprobante";display:block!important;font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:900;margin-bottom:6px}
 }
+
+/* v1.14 · Tabla tipo Excel: columnas visibles, cuadrícula continua y lectura más familiar */
+.spreadsheet-wrap{
+  padding:0;
+  overflow:auto;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:var(--surface);
+  box-shadow:0 8px 24px rgba(23,50,77,.06);
+}
+.spreadsheet-table{
+  width:100%;
+  min-width:1040px;
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:fixed;
+}
+.spreadsheet-table thead{display:table-header-group}
+.spreadsheet-table thead th{
+  position:relative;
+  background:linear-gradient(180deg,var(--table-head),color-mix(in srgb,var(--table-head) 88%,#000));
+  color:#fff;
+  font-size:9.5px;
+  font-weight:900;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+  padding:12px 11px;
+  border-right:1px solid rgba(255,255,255,.16);
+  border-bottom:2px solid color-mix(in srgb,var(--green) 65%,#fff);
+  vertical-align:middle;
+  white-space:nowrap;
+}
+.spreadsheet-table thead th:last-child{border-right:0}
+.spreadsheet-table thead th.right{text-align:right}
+.spreadsheet-table .col-number{width:54px;text-align:center}
+.spreadsheet-table .col-date{width:145px}
+.spreadsheet-table .col-type{width:135px}
+.spreadsheet-table .col-detail{width:auto}
+.spreadsheet-table .col-time{width:105px}
+.spreadsheet-table .col-amount{width:130px}
+.spreadsheet-table .col-support{width:230px}
+
+.spreadsheet-table tbody{display:table-row-group}
+.spreadsheet-table tbody tr{
+  display:table-row;
+  filter:none!important;
+  transform:none!important;
+  box-shadow:none!important;
+  background:transparent!important;
+}
+.spreadsheet-table tbody tr:hover td{background:var(--row-hover)!important}
+.spreadsheet-table tbody tr:nth-child(even) td{background:var(--row-alt)}
+.spreadsheet-table tbody td{
+  display:table-cell;
+  padding:10px 11px;
+  min-width:0;
+  vertical-align:middle;
+  background:var(--surface);
+  border:0;
+  border-right:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  border-radius:0!important;
+  font-size:10.5px;
+  line-height:1.3;
+}
+.spreadsheet-table tbody td:last-child{border-right:0}
+.spreadsheet-table tbody tr:last-child td{border-bottom:0}
+.spreadsheet-table tbody tr.credit td:first-child{border-left:4px solid var(--green)}
+.spreadsheet-table tbody tr.expense td:first-child{border-left:4px solid var(--orange)}
+:root[data-theme="dark"] .spreadsheet-table tbody td{background:var(--surface)}
+:root[data-theme="dark"] .spreadsheet-table tbody tr:nth-child(even) td{background:var(--row-alt)}
+:root[data-theme="dark"] .spreadsheet-table tbody tr:hover td{background:var(--row-hover)!important}
+
+.movement-number-cell{text-align:center!important}
+.row-number{
+  display:inline-flex;
+  width:25px;
+  height:25px;
+  align-items:center;
+  justify-content:center;
+  border-radius:6px;
+  background:var(--surface-2);
+  color:var(--muted);
+  border:1px solid var(--line);
+  font-size:9px;
+  font-weight:900;
+}
+.spreadsheet-table .date-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:10px;
+  font-weight:850;
+  white-space:nowrap;
+}
+.spreadsheet-table .movement-type-cell .type-pill{
+  min-width:92px;
+  justify-content:center;
+  padding:6px 8px;
+  font-size:8.5px;
+}
+.table-detail-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.table-detail-copy strong{font-size:9px;color:var(--muted);font-weight:800}
+.table-detail-copy span{font-size:10.5px;color:var(--text);font-weight:800;overflow-wrap:anywhere}
+.table-time{white-space:nowrap;color:var(--text);font-weight:750}
+.spreadsheet-table .movement-amount-cell{text-align:right!important}
+.spreadsheet-table .amount-box{
+  min-width:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-end;
+  padding:5px 8px;
+  border-radius:7px;
+  border:1px solid transparent;
+}
+.spreadsheet-table .amount-box b{font-size:10.5px;white-space:nowrap;font-weight:950}
+.spreadsheet-table .movement-amount-cell.credit .amount-box{background:var(--soft-green);border-color:color-mix(in srgb,var(--green) 22%,var(--line));color:var(--green-dark)}
+.spreadsheet-table .movement-amount-cell.expense .amount-box{background:var(--soft-orange);border-color:color-mix(in srgb,var(--orange) 22%,var(--line));color:var(--orange-dark)}
+.spreadsheet-table .movement-support-cell{padding-right:10px}
+.spreadsheet-table .support-stack{gap:5px;align-items:flex-start}
+.spreadsheet-table .support-btn{min-width:108px;padding:7px 9px;font-size:9px}
+.spreadsheet-table .delivery-badge,.spreadsheet-table .shown-badge,.spreadsheet-table .lost-badge,.spreadsheet-table .not-applicable{font-size:8px;padding:5px 7px}
+.mobile-table-hint{display:none}
+
+/* La cuadrícula se mantiene como tabla también en móvil; se desplaza horizontalmente como una hoja de Excel. */
+@media(max-width:620px){
+  .movement-table-wrap.spreadsheet-wrap{
+    overflow-x:auto;
+    overflow-y:hidden;
+    border:1px solid var(--line);
+    background:var(--surface);
+    box-shadow:0 6px 18px rgba(23,50,77,.05);
+    -webkit-overflow-scrolling:touch;
+  }
+  .spreadsheet-table{
+    display:table!important;
+    min-width:850px!important;
+    table-layout:fixed;
+    border-collapse:separate!important;
+    border-spacing:0!important;
+  }
+  .spreadsheet-table thead{display:table-header-group!important}
+  .spreadsheet-table tbody{display:table-row-group!important}
+  .spreadsheet-table tbody tr{
+    display:table-row!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  .spreadsheet-table thead th,
+  .spreadsheet-table tbody td{
+    display:table-cell!important;
+    padding:9px 9px!important;
+    border-right:1px solid var(--line)!important;
+    border-bottom:1px solid var(--line)!important;
+    background:var(--surface)!important;
+    text-align:left!important;
+  }
+  .spreadsheet-table tbody tr:nth-child(even) td{background:var(--row-alt)!important}
+  .spreadsheet-table tbody tr:hover td{background:var(--row-hover)!important}
+  .spreadsheet-table tbody td:before{display:none!important;content:none!important}
+  .spreadsheet-table .movement-number-cell{text-align:center!important}
+  .spreadsheet-table .movement-amount-cell{text-align:right!important}
+  .spreadsheet-table thead th.right{text-align:right!important}
+  .spreadsheet-table .col-number{width:50px}
+  .spreadsheet-table .col-date{width:125px}
+  .spreadsheet-table .col-type{width:120px}
+  .spreadsheet-table .col-detail{width:235px}
+  .spreadsheet-table .col-time{width:85px}
+  .spreadsheet-table .col-amount{width:115px}
+  .spreadsheet-table .col-support{width:190px}
+  .spreadsheet-table .movement-type-cell .type-pill{min-width:80px}
+  .spreadsheet-table .support-stack{display:flex!important;flex-direction:column!important;align-items:flex-start!important;flex-wrap:nowrap!important;width:auto!important}
+  .spreadsheet-table .support-btn{width:auto!important;min-width:100px!important}
+  .mobile-table-hint{
+    display:block;
+    position:sticky;
+    left:0;
+    width:max-content;
+    max-width:calc(100vw - 44px);
+    padding:7px 10px;
+    color:var(--muted);
+    font-size:8.5px;
+    font-weight:700;
+    background:var(--surface-2);
+    border-top:1px solid var(--line);
+  }
+}

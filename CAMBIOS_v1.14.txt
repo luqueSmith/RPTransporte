@@ -1,0 +1,9 @@
+APC Transporte Web v1.14
+
+- Tabla de movimientos rediseñada como cuadrícula tipo Excel.
+- Columnas separadas: N.º, Fecha, Movimiento, Detalle / ruta, Hora, Importe y Comprobante / entrega.
+- Encabezado azul APC y líneas visibles entre filas y columnas.
+- Filas alternadas para facilitar la lectura.
+- Créditos y gastos conservan sus colores sin convertir cada fila en una tarjeta.
+- En móvil se mantiene la tabla real con desplazamiento horizontal.
+- No se modifica la lógica de Supabase, filtros, comprobantes ni cálculos.
