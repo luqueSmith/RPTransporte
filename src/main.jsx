@@ -30,18 +30,27 @@ const movementDetail = e => {
 }
 const isLost = e => /extraviad|perdid|sustra/i.test(e.support_note || '')
 const isShown = e => /ya mostr/i.test(e.support_note || '')
-const canOpenSupport = e => !!(e.receipt_image_base64 || e.support_asset || e.support_type?.includes('declaration'))
-const hasReceipt = e => e?.entry_type==='expense' && !isLost(e) && (!!e.receipt_image_base64 || e.support_type?.includes('receipt') || isShown(e))
+const hasDeclaration = e => e?.entry_type==='expense' && !!(
+  e.support_type?.includes('declaration') || e.declaration_reason || e.declaration_place_date
+)
+const hasReceipt = e => e?.entry_type==='expense' && !isLost(e) && !!(
+  e.receipt_image_base64 || e.support_type?.includes('receipt') || isShown(e)
+)
+const canOpenReceipt = e => !!(
+  e?.receipt_image_base64 ||
+  (e?.support_asset && !e?.support_type?.includes('declaration')) ||
+  (e?.support_asset && e?.support_type?.includes('receipt'))
+)
+const canOpenDeclaration = e => hasDeclaration(e)
+const canOpenSupport = e => canOpenReceipt(e) || canOpenDeclaration(e)
 const receiptDeliveryText = e => e?.receipt_delivered ? 'Entregada' : 'Pendiente de entregar'
 const supportExportLabel = e => {
   if(e.entry_type==='credit') return '—'
-  if(isLost(e)) return 'Boleta extraviada'
-  if(isShown(e) && !canOpenSupport(e)) return `Ya mostrada${hasReceipt(e)?` · ${receiptDeliveryText(e)}`:''}`
-  const receipt=hasReceipt(e), declaration=e.support_type?.includes('declaration')
-  if(receipt && declaration) return `Boleta + declaración · ${receiptDeliveryText(e)}`
-  if(receipt) return `Boleta · ${receiptDeliveryText(e)}`
-  if(declaration) return 'Declaración jurada'
-  return '—'
+  const parts=[]
+  if(isLost(e)) parts.push('Boleta extraviada')
+  else if(hasReceipt(e)) parts.push(`Boleta · ${receiptDeliveryText(e)}`)
+  if(hasDeclaration(e)) parts.push('Declaración jurada')
+  return parts.length ? parts.join(' + ') : '—'
 }
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const friendlyError = e => {
@@ -86,6 +95,43 @@ const inDateRange = (date, from, to) => {
   return true
 }
 
+const normalizeRouteText = value => String(value||'')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toUpperCase().replace(/\s+/g,' ').trim()
+
+const HOME_MARKERS = ['PISCO','CRUCE PISCO']
+const WORK_MARKERS = ['ICA','BARRIO CHINO']
+const containsMarker = (text,markers) => markers.some(m=>text.includes(m))
+
+const routeEndpoints = e => {
+  if(e?.origin || e?.destination){
+    return [normalizeRouteText(e.origin),normalizeRouteText(e.destination)]
+  }
+  const raw=normalizeRouteText(movementDetail(e))
+  const parts=raw.split(/\s*(?:→|->|—|–|-)\s*/).filter(Boolean)
+  if(parts.length>=2) return [parts[0],parts[parts.length-1]]
+  return [raw,'']
+}
+
+const routeDirection = e => {
+  if(e?.entry_type!=='expense') return 'none'
+  const [from,to]=routeEndpoints(e)
+  const fromHome=containsMarker(from,HOME_MARKERS)
+  const toHome=containsMarker(to,HOME_MARKERS)
+  const fromWork=containsMarker(from,WORK_MARKERS)
+  const toWork=containsMarker(to,WORK_MARKERS)
+  if(fromHome && toWork) return 'outbound'
+  if(fromWork && toHome) return 'return'
+  return 'other'
+}
+
+const matchesMovementFilters = (e,{dateFrom,dateTo,typeFilter,directionFilter}) => {
+  if((dateFrom||dateTo) && !inDateRange(e.entry_date,dateFrom,dateTo)) return false
+  if(typeFilter!=='all' && e.entry_type!==typeFilter) return false
+  if(directionFilter!=='all' && routeDirection(e)!==directionFilter) return false
+  return true
+}
+
 function ApcLogo({className=''}) {
   return <span className={`apc-logo-pair ${className}`}>
     <img className="apc-logo-light" src={asset('apc-logo-light.webp')} alt="APC Corporacion"/>
@@ -103,6 +149,8 @@ function App(){
   const [theme,setTheme] = useState(localStorage.getItem('apc_theme') || 'light')
   const [dateFrom,setDateFrom] = useState('')
   const [dateTo,setDateTo] = useState('')
+  const [typeFilter,setTypeFilter] = useState('all')
+  const [directionFilter,setDirectionFilter] = useState('all')
 
   useEffect(()=>{document.documentElement.dataset.theme=theme;localStorage.setItem('apc_theme',theme)},[theme])
   useEffect(()=>{ if(pin && sessionStorage.getItem('apc_pin')) doLogin(pin, true) },[])
@@ -110,10 +158,11 @@ function App(){
   const current = useMemo(()=>bundles.find(b=>!b.report?.is_closed && !b.report?.period_end) || null,[bundles])
   const pending = useMemo(()=>bundles.filter(b=>!b.report?.is_closed && !!b.report?.period_end).sort((a,b)=>String(b.report.period_start).localeCompare(String(a.report.period_start))),[bundles])
   const closed = useMemo(()=>bundles.filter(b=>b.report?.is_closed).sort((a,b)=>String(b.report.period_start).localeCompare(String(a.report.period_start))),[bundles])
-  const dateFilterActive=!!(dateFrom||dateTo)
-  const filterEntries=entries=>sortEntriesNewestFirst(dateFilterActive?(entries||[]).filter(e=>inDateRange(e.entry_date,dateFrom,dateTo)):(entries||[]))
-  const periodHasMatches=b=>!dateFilterActive||filterEntries(b.entries).length>0
-  const matchCount=useMemo(()=>bundles.reduce((n,b)=>n+filterEntries(b.entries).length,0),[bundles,dateFrom,dateTo])
+  const movementFilterActive=!!(dateFrom||dateTo||typeFilter!=='all'||directionFilter!=='all')
+  const filterConfig={dateFrom,dateTo,typeFilter,directionFilter}
+  const filterEntries=entries=>sortEntriesNewestFirst(movementFilterActive?(entries||[]).filter(e=>matchesMovementFilters(e,filterConfig)):(entries||[]))
+  const periodHasMatches=b=>!movementFilterActive||filterEntries(b.entries).length>0
+  const matchCount=useMemo(()=>bundles.reduce((n,b)=>n+filterEntries(b.entries).length,0),[bundles,dateFrom,dateTo,typeFilter,directionFilter])
 
   async function doLogin(value=pin, quiet=false){
     setLoading(true); setError('')
@@ -186,16 +235,16 @@ function App(){
           </div>
         </section>
 
-        {!current && <DateFilter dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} active={dateFilterActive} matches={matchCount}/>}
+        {!current && <MovementFilters dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} typeFilter={typeFilter} setTypeFilter={setTypeFilter} directionFilter={directionFilter} setDirectionFilter={setDirectionFilter} active={movementFilterActive}/>}
 
         {current && <>
           <div className="section-marker current-marker"><div className="marker-copy"><span>PERÍODO ACTUAL</span><small>{formatDate(current.report.period_start)} – hoy</small></div><b>Cuenta abierta</b></div>
           <PeriodSection
             bundle={{...current,entries:filterEntries(current.entries)}}
             current
-            filtered={dateFilterActive}
-            filterControl={<DateFilter dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} active={dateFilterActive} matches={matchCount}/>}
-            onEvidence={(item)=>setModal({item,report:current.report})}
+            filtered={movementFilterActive}
+            filterControl={<MovementFilters dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} typeFilter={typeFilter} setTypeFilter={setTypeFilter} directionFilter={directionFilter} setDirectionFilter={setDirectionFilter} active={movementFilterActive}/>}
+            onEvidence={(item,kind)=>setModal({item,kind,report:current.report})}
           />
           {current.report.status!=='draft' && <ReviewPanel bundle={current} onReview={review}/>} 
         </>}
@@ -203,28 +252,45 @@ function App(){
         {!!pending.filter(periodHasMatches).length && <div className="past-title"><span className="eyebrow">ENVIADOS</span><h2>Pendientes de revisión o liquidación</h2><p>Estos periodos ya terminaron, pero todavía no se han marcado como cuentas liquidadas desde la APK.</p></div>}
         {pending.filter(periodHasMatches).map(b=><React.Fragment key={b.report.id}>
           <div className="section-marker pending-marker"><div className="marker-copy"><span>PERÍODO FINALIZADO</span><small>{formatDate(b.report.period_start)} – {formatDate(b.report.period_end)}</small></div><b>{statusMeta[b.report.status]?.[0]||'En revisión'}</b></div>
-          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} pending filtered={dateFilterActive} onEvidence={(item)=>setModal({item,report:b.report})}/>
+          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} pending filtered={movementFilterActive} onEvidence={(item,kind)=>setModal({item,kind,report:b.report})}/>
           <ReviewPanel bundle={b} onReview={review}/>
         </React.Fragment>)}
 
         {!!closed.filter(periodHasMatches).length && <div className="past-title"><span className="eyebrow">CUENTAS ANTERIORES</span><h2>Períodos liquidados</h2><p>Estos períodos quedaron saldados al finalizar. Su saldo pendiente actual es S/ 0.00.</p></div>}
         {closed.filter(periodHasMatches).map(b=><React.Fragment key={b.report.id}>
           <div className="section-marker closed-marker"><div className="marker-copy"><span>PERÍODO CERRADO</span><small>{formatDate(b.report.period_start)} – {formatDate(b.report.period_end)}</small></div><b><CheckCircle2 size={15}/> Liquidado</b></div>
-          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} filtered={dateFilterActive} collapsible onEvidence={(item)=>setModal({item,report:b.report})}/>
+          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} filtered={movementFilterActive} collapsible onEvidence={(item,kind)=>setModal({item,kind,report:b.report})}/>
         </React.Fragment>)}
-        {dateFilterActive && matchCount===0 && <div className="filter-empty"><CalendarDays size={28}/><strong>No hay movimientos en esas fechas</strong><span>Prueba con otro rango o limpia el filtro.</span></div>}
+        {movementFilterActive && matchCount===0 && <div className="filter-empty"><CalendarDays size={28}/><strong>No hay movimientos que coincidan con los filtros</strong><span>Prueba con otros filtros o límpialos.</span></div>}
       </>}
     </main>
-    {modal && <EvidenceModal item={modal.item} report={modal.report} onClose={()=>setModal(null)}/>} 
+    {modal && <EvidenceModal item={modal.item} kind={modal.kind} report={modal.report} onClose={()=>setModal(null)}/>} 
   </div>
 }
 
-function DateFilter({dateFrom,dateTo,setDateFrom,setDateTo,active}){
+function MovementFilters({dateFrom,dateTo,setDateFrom,setDateTo,typeFilter,setTypeFilter,directionFilter,setDirectionFilter,active}){
   const openPicker=id=>{const el=document.getElementById(id);if(el?.showPicker)el.showPicker();else el?.focus()}
   const openNext=()=>openPicker(!dateFrom?'date-from':(!dateTo?'date-to':'date-from'))
-  return <div className={`movement-date-filter compact-date-filter simple-date-filter ${active?'active':''}`}>
-    {active && <button type="button" className="filter-reset" aria-label="Quitar filtro de fecha" title="Quitar filtro" onClick={()=>{setDateFrom('');setDateTo('')}}><X size={14}/></button>}
-    <div className="movement-filter-controls simple-filter-controls">
+  const reset=()=>{setDateFrom('');setDateTo('');setTypeFilter('all');setDirectionFilter('all')}
+  return <div className={`movement-date-filter movement-filter-panel compact-date-filter ${active?'active':''}`}>
+    {active && <button type="button" className="filter-reset" aria-label="Quitar todos los filtros" title="Quitar filtros" onClick={reset}><X size={14}/></button>}
+    <div className="movement-filter-controls extended-filter-controls">
+      <label className="filter-choice select-choice">
+        <span>Movimiento</span>
+        <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>
+          <option value="all">Todos</option>
+          <option value="expense">Solo gastos</option>
+          <option value="credit">Solo créditos</option>
+        </select>
+      </label>
+      <label className="filter-choice select-choice route-filter-choice">
+        <span>Trayecto</span>
+        <select value={directionFilter} onChange={e=>setDirectionFilter(e.target.value)}>
+          <option value="all">Todas las rutas</option>
+          <option value="outbound">Ida al trabajo · Pisco → Ica / Barrio Chino</option>
+          <option value="return">Regreso a Pisco · Ica / Barrio Chino → Pisco</option>
+        </select>
+      </label>
       <label className="date-choice simple-date-choice">
         <span>Desde</span>
         <input id="date-from" type="date" value={dateFrom} max={dateTo||undefined} onClick={e=>e.currentTarget.showPicker?.()} onChange={e=>setDateFrom(e.target.value)}/>
@@ -264,7 +330,7 @@ function PeriodSection({bundle,current=false,pending=false,filtered=false,collap
       {!active && <div className="metric closure"><span>{raw>0?'Devuelto al cierre':raw<0?'Regularización de cierre':'Cierre'}</span><strong>{money(adjustment)}</strong></div>}
     </div>
     {!active && <div className="closure-note"><CheckCircle2 size={17}/><div><strong>Cuenta liquidada · saldo S/ 0.00</strong><span>{report.closure_note || (raw>0?'El saldo sobrante fue devuelto al finalizar el período.':raw<0?'La diferencia pendiente fue regularizada al finalizar el período.':'El período cerró sin saldo pendiente.')}</span></div></div>}
-    {filtered && <div className="period-filter-note"><Filter size={14}/> Mostrando solo movimientos que coinciden con el filtro de fecha. Los totales superiores corresponden al período completo.</div>}
+    {filtered && <div className="period-filter-note"><Filter size={14}/> Mostrando solo movimientos que coinciden con los filtros seleccionados. Los totales superiores corresponden al período completo.</div>}
 
     {collapsible ? <details className="closed-movements-details"><summary><span><CalendarDays size={16}/> Movimientos y sustentos</span><b>{entries.length} {entries.length===1?'registro':'registros'}</b><ChevronDown size={18}/></summary><div className="closed-movements-body"><MovementTable entries={entries} onEvidence={onEvidence}/></div></details> : <MovementTable entries={entries} onEvidence={onEvidence} filterControl={filterControl}/>}
   </section>
@@ -323,7 +389,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
                 </td>
                 <td data-label="Hora" className="movement-time-cell"><span className="table-time">{e.issue_time||'—'}</span></td>
                 <td data-label="Importe" className={`right amount ${e.entry_type} movement-amount-cell`}><span className="amount-box"><b>{isCredit?'+':'−'}{money(e.amount)}</b></span></td>
-                <td data-label="Comprobante / entrega" className="movement-support-cell"><SupportCell item={e} onOpen={()=>onEvidence(e)}/></td>
+                <td data-label="Comprobante / entrega" className="movement-support-cell"><SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/></td>
               </tr>
             })}
           </tbody>
@@ -360,7 +426,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
 
           <div className="mobile-card-support">
             <span className="mobile-field-label">Comprobante / entrega</span>
-            <SupportCell item={e} onOpen={()=>onEvidence(e)}/>
+            <SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/>
           </div>
         </article>
       })}
@@ -370,12 +436,34 @@ function MovementTable({entries,onEvidence,filterControl=null}){
 
 function SupportCell({item,onOpen}){
   if(item.entry_type==='credit') return <span className="not-applicable">No corresponde</span>
-  if(isLost(item)) return <span className="lost-badge"><AlertTriangle size={15}/> Boleta extraviada</span>
+
   const receipt=hasReceipt(item)
-  const delivery=receipt?<span className={`delivery-badge ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?<CheckCircle2 size={14}/>:<CircleAlert size={14}/>} {item.receipt_delivered?'Boleta entregada':'Boleta pendiente'}</span>:null
-  if(isShown(item) && !canOpenSupport(item)) return <span className="support-stack"><span className="shown-badge"><CheckCircle2 size={15}/> Ya mostrada</span>{delivery}</span>
-  if(canOpenSupport(item)) return <span className="support-stack"><button className={`support-btn ${item.support_type?.includes('declaration')?'declaration':''}`} onClick={onOpen}><Eye size={16}/>{item.support_type?.includes('declaration')?'Ver declaración':'Ver boleta'}</button>{delivery}</span>
-  return receipt?<span className="support-stack"><span className="shown-badge">Boleta registrada</span>{delivery}</span>:<span className="muted">Sin sustento</span>
+  const declaration=hasDeclaration(item)
+  const lost=isLost(item)
+  const shown=isShown(item)
+
+  return <div className="support-documents">
+    <div className="support-document support-document-receipt">
+      <span className="support-document-label">BOLETA</span>
+      <div className="support-document-actions">
+        {lost ? <span className="lost-badge"><AlertTriangle size={14}/> Extraviada</span>
+          : canOpenReceipt(item) ? <button className="support-btn receipt" onClick={()=>onOpen('receipt')}><Eye size={15}/> Ver boleta</button>
+          : shown ? <span className="shown-badge"><CheckCircle2 size={14}/> Ya mostrada</span>
+          : receipt ? <span className="shown-badge">Registrada</span>
+          : <span className="support-missing">Sin boleta</span>}
+        {receipt && <span className={`delivery-badge ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?<CheckCircle2 size={13}/>:<CircleAlert size={13}/>} {item.receipt_delivered?'Entregada':'Pendiente'}</span>}
+      </div>
+    </div>
+
+    <div className="support-document support-document-declaration">
+      <span className="support-document-label">DECLARACIÓN JURADA</span>
+      <div className="support-document-actions">
+        {declaration
+          ? <button className="support-btn declaration" onClick={()=>onOpen('declaration')}><FileText size={15}/> Ver declaración</button>
+          : <span className="support-missing">No corresponde</span>}
+      </div>
+    </div>
+  </div>
 }
 
 function ReviewPanel({bundle,onReview}){
@@ -410,12 +498,16 @@ function ReviewPanel({bundle,onReview}){
   </section>
 }
 
-function EvidenceModal({item,report,onClose}){
-  const src=item.receipt_image_base64?`data:${item.receipt_mime||'image/jpeg'};base64,${item.receipt_image_base64}`:item.support_asset?asset(item.support_asset):null
-  const declaration=item.support_type?.includes('declaration')
+function EvidenceModal({item,kind="receipt",report,onClose}){
+  const declaration=kind==='declaration'
+  const src=declaration
+    ? (item.support_asset && item.support_type?.includes('declaration') ? asset(item.support_asset) : null)
+    : (item.receipt_image_base64 ? `data:${item.receipt_mime||'image/jpeg'};base64,${item.receipt_image_base64}` : (item.support_asset && !item.support_type?.includes('declaration') ? asset(item.support_asset) : null))
   return <div className="modal-backdrop" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button>
-    <div className="modal-heading"><div><span>{declaration?'Declaración jurada':'Evidencia de boleta'}</span><strong>{formatDate(item.entry_date)} · {money(item.amount)} · {movementDetail(item)}</strong>{hasReceipt(item)&&<small className={`modal-delivery ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?'BOLETA ENTREGADA AL ADMINISTRADOR':'BOLETA PENDIENTE DE ENTREGAR'}</small>}</div></div>
-    {src ? <img className={`receipt-image ${declaration?'document-image':''}`} src={src}/> : declaration ? <DeclarationCard item={item} report={report}/> : <div className="empty-support">La evidencia no está guardada digitalmente.</div>}
+    <div className="modal-heading"><div><span>{declaration?'Declaración jurada':'Evidencia de boleta'}</span><strong>{formatDate(item.entry_date)} · {money(item.amount)} · {movementDetail(item)}</strong>{!declaration && hasReceipt(item)&&<small className={`modal-delivery ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?'BOLETA ENTREGADA AL ADMINISTRADOR':'BOLETA PENDIENTE DE ENTREGAR'}</small>}</div></div>
+    {declaration
+      ? (src ? <img className="receipt-image document-image" src={src}/> : <DeclarationCard item={item} report={report}/>)
+      : (src ? <img className="receipt-image" src={src}/> : <div className="empty-support">La boleta no está guardada digitalmente.</div>)}
   </div></div>
 }
 

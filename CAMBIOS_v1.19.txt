@@ -1,0 +1,10 @@
+APC Transporte Web v1.19
+
+- Separa claramente BOLETA y DECLARACIÓN JURADA en cada gasto.
+- Si un gasto tiene ambos sustentos, aparecen dos acciones independientes.
+- El estado Entregada/Pendiente se aplica solo a la boleta.
+- Añade filtro por tipo: Todos, Solo gastos, Solo créditos.
+- Añade filtro por trayecto: Ida al trabajo (Pisco -> Ica/Barrio Chino) y Regreso a Pisco.
+- Conserva el filtro por fechas y permite combinar todos los filtros.
+- Mantiene el orden de fecha más reciente a más antigua.
+- No requiere cambios SQL.

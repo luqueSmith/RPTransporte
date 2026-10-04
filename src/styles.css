@@ -934,3 +934,157 @@
      está adaptada completamente al ancho de la pantalla. */
   .mobile-table-hint{display:none!important}
 }
+
+/* ==========================================================
+   v1.19 · Filtros de movimiento + sustento claramente separado
+   ========================================================== */
+.movement-filter-panel{width:min(820px,100%)}
+.extended-filter-controls{
+  display:grid;
+  grid-template-columns:minmax(105px,.72fr) minmax(205px,1.45fr) minmax(112px,.92fr) minmax(112px,.92fr) 38px;
+  gap:7px;
+  align-items:end;
+  margin:0;
+}
+.filter-choice{display:block;min-width:0}
+.filter-choice>span{
+  display:block;
+  margin:0 0 4px;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.filter-choice select{
+  display:block;
+  width:100%;
+  min-width:0;
+  height:36px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--surface-2);
+  color:var(--text);
+  padding:0 28px 0 9px;
+  font:inherit;
+  font-size:9.5px;
+  font-weight:750;
+  outline:none;
+  cursor:pointer;
+  text-overflow:ellipsis;
+}
+.filter-choice select:focus{
+  border-color:var(--green);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 13%,transparent);
+}
+:root[data-theme="dark"] .filter-choice select{color:#edf6f8}
+
+/* La columna de sustento se divide visualmente en BOLETA y DECLARACIÓN JURADA. */
+.friendly-movement-table.spreadsheet-table thead th.col-support{width:270px!important}
+.support-documents{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  min-width:0;
+}
+.support-document{
+  display:grid;
+  grid-template-columns:82px minmax(0,1fr);
+  align-items:center;
+  gap:8px;
+  min-height:31px;
+  padding:4px 0;
+}
+.support-document+.support-document{border-top:1px dashed color-mix(in srgb,var(--line) 78%,transparent)}
+.support-document-label{
+  color:var(--muted);
+  font-size:7.6px;
+  line-height:1.15;
+  font-weight:950;
+  letter-spacing:.055em;
+}
+.support-document-receipt .support-document-label{color:var(--green-dark)}
+.support-document-declaration .support-document-label{color:var(--orange-dark)}
+.support-document-actions{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+  min-width:0;
+}
+.support-missing{
+  color:var(--muted);
+  font-size:8.5px;
+  font-weight:750;
+}
+.spreadsheet-table .support-document .support-btn{
+  padding:3px 0!important;
+  min-height:0;
+}
+.spreadsheet-table .support-document .support-btn.receipt{color:var(--green-dark)}
+.spreadsheet-table .support-document .support-btn.declaration{color:var(--orange-dark)}
+.spreadsheet-table .support-document .delivery-badge,
+.spreadsheet-table .support-document .shown-badge,
+.spreadsheet-table .support-document .lost-badge{
+  padding:2px 0!important;
+  font-size:8.2px;
+}
+
+@media(max-width:1180px) and (min-width:621px){
+  .extended-filter-controls{
+    grid-template-columns:minmax(100px,.7fr) minmax(190px,1.35fr) minmax(105px,.9fr) minmax(105px,.9fr) 38px;
+  }
+  .filter-choice select{font-size:9px}
+}
+
+@media(max-width:620px){
+  .movement-filter-panel{width:100%;padding:10px!important}
+  .movement-filter-panel.active{padding-top:42px!important}
+  .extended-filter-controls{
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .extended-filter-controls .select-choice{grid-column:1/-1}
+  .extended-filter-controls .simple-date-choice{grid-column:auto}
+  .extended-filter-controls .single-calendar-button{
+    grid-column:1/-1;
+    width:100%;
+    height:36px;
+    border-radius:10px;
+  }
+  .filter-choice select,.simple-date-choice input{height:40px;font-size:10px}
+  .support-documents{gap:7px}
+  .support-document{
+    width:100%;
+    grid-template-columns:1fr;
+    gap:4px;
+    padding:0;
+  }
+  .support-document+.support-document{
+    border-top:1px solid var(--line);
+    padding-top:8px;
+  }
+  .support-document-label{font-size:8px}
+  .support-document-actions{gap:7px}
+  .mobile-card-support .support-documents{width:100%}
+  .mobile-card-support .support-document-actions{width:100%}
+  .mobile-card-support .support-btn{
+    min-height:34px!important;
+    padding:7px 10px!important;
+    border:1px solid var(--line)!important;
+    border-radius:10px!important;
+    background:var(--surface-2)!important;
+    text-decoration:none!important;
+  }
+  .mobile-card-support .support-btn.receipt{
+    color:var(--green-dark)!important;
+    border-color:color-mix(in srgb,var(--green) 25%,var(--line))!important;
+    background:var(--soft-green)!important;
+  }
+  .mobile-card-support .support-btn.declaration{
+    color:var(--orange-dark)!important;
+    border-color:color-mix(in srgb,var(--orange) 27%,var(--line))!important;
+    background:var(--soft-orange)!important;
+  }
+}
