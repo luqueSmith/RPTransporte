@@ -979,56 +979,60 @@
 }
 :root[data-theme="dark"] .filter-choice select{color:#edf6f8}
 
-/* La columna de sustento se divide visualmente en BOLETA y DECLARACIÓN JURADA. */
-.friendly-movement-table.spreadsheet-table thead th.col-support{width:270px!important}
-.support-documents{
+/* Sustento compacto: cada gasto muestra solo el documento que realmente corresponde. */
+.friendly-movement-table.spreadsheet-table thead th.col-support{width:235px!important}
+.support-compact{
   width:100%;
-  display:flex;
-  flex-direction:column;
-  gap:0;
-  min-width:0;
-}
-.support-document{
-  display:grid;
-  grid-template-columns:82px minmax(0,1fr);
-  align-items:center;
-  gap:8px;
-  min-height:31px;
-  padding:4px 0;
-}
-.support-document+.support-document{border-top:1px dashed color-mix(in srgb,var(--line) 78%,transparent)}
-.support-document-label{
-  color:var(--muted);
-  font-size:7.6px;
-  line-height:1.15;
-  font-weight:950;
-  letter-spacing:.055em;
-}
-.support-document-receipt .support-document-label{color:var(--green-dark)}
-.support-document-declaration .support-document-label{color:var(--orange-dark)}
-.support-document-actions{
   display:flex;
   align-items:center;
   flex-wrap:wrap;
-  gap:6px;
+  gap:9px;
   min-width:0;
 }
-.support-missing{
-  color:var(--muted);
-  font-size:8.5px;
-  font-weight:750;
+.support-link{
+  appearance:none;
+  border:0;
+  background:transparent;
+  padding:3px 0;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  font:inherit;
+  font-size:9px;
+  line-height:1.2;
+  font-weight:900;
+  cursor:pointer;
+  text-decoration:none;
+  white-space:nowrap;
 }
-.spreadsheet-table .support-document .support-btn{
-  padding:3px 0!important;
-  min-height:0;
+.support-link.receipt{color:var(--green-dark)}
+.support-link.declaration{color:var(--orange-dark)}
+.support-link:hover{text-decoration:underline}
+.support-status,.support-text{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-size:8.6px;
+  line-height:1.2;
+  font-weight:850;
+  white-space:nowrap;
 }
-.spreadsheet-table .support-document .support-btn.receipt{color:var(--green-dark)}
-.spreadsheet-table .support-document .support-btn.declaration{color:var(--orange-dark)}
-.spreadsheet-table .support-document .delivery-badge,
-.spreadsheet-table .support-document .shown-badge,
-.spreadsheet-table .support-document .lost-badge{
-  padding:2px 0!important;
-  font-size:8.2px;
+.support-status.delivered{color:var(--green-dark)}
+.support-status.pending{color:#9a5b08}
+:root[data-theme="dark"] .support-status.pending{color:#ffb466}
+.support-text.receipt{color:var(--green-dark)}
+.support-text.lost{color:#a23b31}
+:root[data-theme="dark"] .support-text.lost{color:#ff9f94}
+.support-empty{color:var(--muted);font-size:9px;font-weight:750}
+
+/* Separador pequeño para que "documento" y "estado de entrega" se lean como dos datos,
+   sin convertir la celda en una colección de tarjetas. */
+.support-compact.receipt-only .support-status:before{
+  content:"";
+  width:1px;
+  height:13px;
+  background:var(--line);
+  margin-right:1px;
 }
 
 @media(max-width:1180px) and (min-width:621px){
@@ -1086,5 +1090,36 @@
     color:var(--orange-dark)!important;
     border-color:color-mix(in srgb,var(--orange) 27%,var(--line))!important;
     background:var(--soft-orange)!important;
+  }
+}
+
+
+/* v1.20 · Sustento limpio en móvil */
+@media(max-width:620px){
+  .mobile-card-support .support-compact{
+    width:100%;
+    min-height:38px;
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:11px;
+    background:var(--surface-2);
+    gap:10px;
+  }
+  .mobile-card-support .support-link{
+    font-size:10.5px;
+    padding:0;
+  }
+  .mobile-card-support .support-status,
+  .mobile-card-support .support-text{
+    font-size:10px;
+  }
+  .mobile-card-support .support-empty{font-size:10px}
+  .mobile-card-support .support-compact.declaration-only{
+    border-color:color-mix(in srgb,var(--orange) 22%,var(--line));
+    background:color-mix(in srgb,var(--soft-orange) 55%,var(--surface));
+  }
+  .mobile-card-support .support-compact.receipt-only{
+    border-color:color-mix(in srgb,var(--green) 20%,var(--line));
+    background:color-mix(in srgb,var(--soft-green) 52%,var(--surface));
   }
 }

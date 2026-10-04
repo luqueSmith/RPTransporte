@@ -1,0 +1,11 @@
+APC Transporte Web v1.20 · Sustento limpio
+
+- Cada gasto muestra un solo sustento: BOLETA o DECLARACIÓN JURADA.
+- Si existe boleta, la declaración jurada deja de mostrarse para ese movimiento.
+- La columna ahora se llama SUSTENTO y se simplificó visualmente.
+- Boleta: muestra Ver boleta + Entregada/Pendiente en una sola línea.
+- Declaración: muestra solo Ver declaración jurada.
+- Créditos: muestran “—” porque no requieren sustento.
+- Se limpian valores literales null/undefined en hora y campos de declaración.
+- PDF y Excel respetan la misma regla: un único sustento por gasto.
+- No requiere cambios SQL ni actualización de la APK.

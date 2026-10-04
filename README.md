@@ -1,3 +1,11 @@
+# APC Transporte Web v1.20 · Sustento limpio
+
+- Un solo sustento por gasto: **boleta o declaración jurada**.
+- Si hay boleta, la declaración se oculta automáticamente.
+- La columna **Sustento** es más limpia y profesional.
+- PDF/Excel usan la misma regla.
+- No requiere SQL ni cambios en la APK.
+
 ## v1.13 · Tabla de movimientos más amigable
 
 - Reorganiza la tabla para que un usuario común entienda rápidamente qué ocurrió, cuánto dinero entró o salió y qué comprobante existe.

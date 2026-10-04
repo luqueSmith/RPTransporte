@@ -1,0 +1,8 @@
+APC Transporte Web v1.20
+
+Esta versión corrige la columna SUSTENTO.
+Un gasto nunca mostrará al mismo tiempo boleta y declaración jurada.
+La boleta tiene prioridad; si no hay boleta y existe una declaración, se muestra la declaración.
+No ejecutar SQL.
+
+Para publicar: ejecuta ACTUALIZAR_WEB_V1.20.ps1.

@@ -9,6 +9,10 @@ import './styles.css'
 
 const asset = name => `${import.meta.env.BASE_URL}${name}`
 const money = n => `S/ ${Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const cleanText = value => {
+  const text=String(value??'').trim()
+  return !text || /^(null|undefined)$/i.test(text) ? '' : text
+}
 const formatDate = s => {
   if (!s) return '—'
   const [y,m,d] = String(s).slice(0,10).split('-')
@@ -31,7 +35,7 @@ const movementDetail = e => {
 const isLost = e => /extraviad|perdid|sustra/i.test(e.support_note || '')
 const isShown = e => /ya mostr/i.test(e.support_note || '')
 const hasDeclaration = e => e?.entry_type==='expense' && !!(
-  e.support_type?.includes('declaration') || e.declaration_reason || e.declaration_place_date
+  e.support_type?.includes('declaration') || cleanText(e.declaration_reason) || cleanText(e.declaration_place_date)
 )
 const hasReceipt = e => e?.entry_type==='expense' && !isLost(e) && !!(
   e.receipt_image_base64 || e.support_type?.includes('receipt') || isShown(e)
@@ -41,16 +45,24 @@ const canOpenReceipt = e => !!(
   (e?.support_asset && !e?.support_type?.includes('declaration')) ||
   (e?.support_asset && e?.support_type?.includes('receipt'))
 )
-const canOpenDeclaration = e => hasDeclaration(e)
-const canOpenSupport = e => canOpenReceipt(e) || canOpenDeclaration(e)
+// Un gasto usa un solo sustento visible: boleta O declaración jurada.
+// Si existe una boleta, siempre tiene prioridad y la declaración no se muestra.
+const supportKind = e => {
+  if(e?.entry_type!=='expense') return 'none'
+  if(isLost(e)) return hasDeclaration(e) ? 'declaration' : 'lost'
+  if(hasReceipt(e)) return 'receipt'
+  if(hasDeclaration(e)) return 'declaration'
+  return 'none'
+}
+const canOpenDeclaration = e => supportKind(e)==='declaration' && hasDeclaration(e)
+const canOpenSupport = e => supportKind(e)==='receipt' ? canOpenReceipt(e) : canOpenDeclaration(e)
 const receiptDeliveryText = e => e?.receipt_delivered ? 'Entregada' : 'Pendiente de entregar'
 const supportExportLabel = e => {
-  if(e.entry_type==='credit') return '—'
-  const parts=[]
-  if(isLost(e)) parts.push('Boleta extraviada')
-  else if(hasReceipt(e)) parts.push(`Boleta · ${receiptDeliveryText(e)}`)
-  if(hasDeclaration(e)) parts.push('Declaración jurada')
-  return parts.length ? parts.join(' + ') : '—'
+  const kind=supportKind(e)
+  if(kind==='receipt') return `Boleta · ${receiptDeliveryText(e)}`
+  if(kind==='declaration') return 'Declaración jurada'
+  if(kind==='lost') return 'Boleta extraviada'
+  return '—'
 }
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const friendlyError = e => {
@@ -357,7 +369,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
       </div>
     </div>
 
-    <div className="movement-help"><span className="movement-help-credit">+ suma al saldo</span><span className="movement-help-expense">− descuenta del saldo</span><span>En “Comprobante” puedes revisar la boleta o declaración y ver si la boleta física ya fue entregada.</span></div>
+    <div className="movement-help"><span className="movement-help-credit">+ suma al saldo</span><span className="movement-help-expense">− descuenta del saldo</span><span>En “Sustento” se muestra un solo documento por gasto: boleta o declaración jurada. Si hay boleta, también verás si ya fue entregada.</span></div>
 
     <div className="desktop-movement-table">
       <div className="table-wrap movement-table-wrap spreadsheet-wrap">
@@ -370,7 +382,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
               <th className="col-detail">Detalle / ruta</th>
               <th className="col-time">Hora</th>
               <th className="right col-amount">Importe</th>
-              <th className="col-support">Comprobante / entrega</th>
+              <th className="col-support">Sustento</th>
             </tr>
           </thead>
           <tbody>
@@ -387,9 +399,9 @@ function MovementTable({entries,onEvidence,filterControl=null}){
                     <span>{movementDetail(e)}</span>
                   </div>
                 </td>
-                <td data-label="Hora" className="movement-time-cell"><span className="table-time">{e.issue_time||'—'}</span></td>
+                <td data-label="Hora" className="movement-time-cell"><span className="table-time">{cleanText(e.issue_time)||'—'}</span></td>
                 <td data-label="Importe" className={`right amount ${e.entry_type} movement-amount-cell`}><span className="amount-box"><b>{isCredit?'+':'−'}{money(e.amount)}</b></span></td>
-                <td data-label="Comprobante / entrega" className="movement-support-cell"><SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/></td>
+                <td data-label="Sustento" className="movement-support-cell"><SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/></td>
               </tr>
             })}
           </tbody>
@@ -416,7 +428,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
           <div className="mobile-card-summary">
             <div className="mobile-summary-cell">
               <span>Hora</span>
-              <strong>{e.issue_time||'—'}</strong>
+              <strong>{cleanText(e.issue_time)||'—'}</strong>
             </div>
             <div className={`mobile-summary-cell mobile-summary-amount ${e.entry_type}`}>
               <span>Importe</span>
@@ -425,7 +437,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
           </div>
 
           <div className="mobile-card-support">
-            <span className="mobile-field-label">Comprobante / entrega</span>
+            <span className="mobile-field-label">Sustento</span>
             <SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/>
           </div>
         </article>
@@ -435,35 +447,32 @@ function MovementTable({entries,onEvidence,filterControl=null}){
 }
 
 function SupportCell({item,onOpen}){
-  if(item.entry_type==='credit') return <span className="not-applicable">No corresponde</span>
+  if(item.entry_type==='credit') return <span className="support-empty">—</span>
 
-  const receipt=hasReceipt(item)
-  const declaration=hasDeclaration(item)
-  const lost=isLost(item)
+  const kind=supportKind(item)
   const shown=isShown(item)
 
-  return <div className="support-documents">
-    <div className="support-document support-document-receipt">
-      <span className="support-document-label">BOLETA</span>
-      <div className="support-document-actions">
-        {lost ? <span className="lost-badge"><AlertTriangle size={14}/> Extraviada</span>
-          : canOpenReceipt(item) ? <button className="support-btn receipt" onClick={()=>onOpen('receipt')}><Eye size={15}/> Ver boleta</button>
-          : shown ? <span className="shown-badge"><CheckCircle2 size={14}/> Ya mostrada</span>
-          : receipt ? <span className="shown-badge">Registrada</span>
-          : <span className="support-missing">Sin boleta</span>}
-        {receipt && <span className={`delivery-badge ${item.receipt_delivered?'delivered':'pending'}`}>{item.receipt_delivered?<CheckCircle2 size={13}/>:<CircleAlert size={13}/>} {item.receipt_delivered?'Entregada':'Pendiente'}</span>}
-      </div>
-    </div>
-
-    <div className="support-document support-document-declaration">
-      <span className="support-document-label">DECLARACIÓN JURADA</span>
-      <div className="support-document-actions">
-        {declaration
-          ? <button className="support-btn declaration" onClick={()=>onOpen('declaration')}><FileText size={15}/> Ver declaración</button>
-          : <span className="support-missing">No corresponde</span>}
-      </div>
-    </div>
+  if(kind==='receipt') return <div className="support-compact receipt-only">
+    {canOpenReceipt(item)
+      ? <button className="support-link receipt" onClick={()=>onOpen('receipt')}><Eye size={15}/> Ver boleta</button>
+      : shown
+        ? <span className="support-text receipt"><CheckCircle2 size={14}/> Boleta mostrada</span>
+        : <span className="support-text receipt"><FileText size={14}/> Boleta registrada</span>}
+    <span className={`support-status ${item.receipt_delivered?'delivered':'pending'}`}>
+      {item.receipt_delivered?<CheckCircle2 size={13}/>:<CircleAlert size={13}/>}
+      {item.receipt_delivered?'Entregada':'Pendiente'}
+    </span>
   </div>
+
+  if(kind==='declaration') return <div className="support-compact declaration-only">
+    <button className="support-link declaration" onClick={()=>onOpen('declaration')}><FileText size={15}/> Ver declaración jurada</button>
+  </div>
+
+  if(kind==='lost') return <div className="support-compact">
+    <span className="support-text lost"><AlertTriangle size={14}/> Boleta extraviada</span>
+  </div>
+
+  return <span className="support-empty">Sin sustento</span>
 }
 
 function ReviewPanel({bundle,onReview}){
@@ -535,7 +544,7 @@ function DeclarationCard({item,report}){
         <Data label="Origen" value={item.origin||'—'}/>
         <Data label="Destino" value={item.destination||'—'}/>
         <Data label="Ingeniero responsable" value={item.engineer_name||report.engineer_name||'—'}/>
-        <Data label="Motivo" value={item.declaration_reason||'Servicio de transporte sin emisión de comprobante'}/>
+        <Data label="Motivo" value={cleanText(item.declaration_reason)||'Servicio de transporte sin emisión de comprobante'}/>
       </div>
     </section>
 
@@ -548,7 +557,7 @@ function DeclarationCard({item,report}){
 
     <div className="dj-place">
       <span>Lugar y fecha de firma</span>
-      <strong>{item.declaration_place_date||'—'}</strong>
+      <strong>{cleanText(item.declaration_place_date)||'—'}</strong>
     </div>
 
     <div className="signatures">
@@ -571,7 +580,7 @@ function DeclarationCard({item,report}){
 }
 
 function Data({label,value,accent}) {return <div className="data-cell"><span>{label}</span><strong className={accent?'accent':''}>{value}</strong></div>}
-function declarationText(e,r){return `Yo, ${r.owner_name}, identificado con DNI N.° ${r.owner_dni}, declaro bajo juramento que el día ${formatDate(e.entry_date)} realicé un gasto de ${money(e.amount)} por concepto de transporte en la ruta ${movementDetail(e)}, relacionado con mis traslados laborales para ${r.company_name}, RUC ${r.company_ruc}. El transportista no emitió boleta, factura ni otro comprobante de pago por el servicio. El motivo del uso de este transporte fue: ${e.declaration_reason||'falta de disponibilidad de transporte público regular'}. Declaro que la información consignada es verdadera y autorizo su uso como sustento interno del gasto de transporte.`}
+function declarationText(e,r){return `Yo, ${r.owner_name}, identificado con DNI N.° ${r.owner_dni}, declaro bajo juramento que el día ${formatDate(e.entry_date)} realicé un gasto de ${money(e.amount)} por concepto de transporte en la ruta ${movementDetail(e)}, relacionado con mis traslados laborales para ${r.company_name}, RUC ${r.company_ruc}. El transportista no emitió boleta, factura ni otro comprobante de pago por el servicio. El motivo del uso de este transporte fue: ${cleanText(e.declaration_reason)||'falta de disponibilidad de transporte público regular'}. Declaro que la información consignada es verdadera y autorizo su uso como sustento interno del gasto de transporte.`}
 
 async function urlToDataUrl(url){
   const res=await fetch(url);if(!res.ok)throw new Error('No se pudo cargar la evidencia')
@@ -596,12 +605,12 @@ async function downloadAllPdf(bundles){
     const labels=['RECIBIDO','GASTADO',r.is_closed?'AJUSTE DE CIERRE':'SALDO'];const vals=[money(s.received),money(s.spent),money(r.is_closed?Math.abs(raw):s.balance)]
     labels.forEach((x,i)=>{const x0=12+i*62;doc.setFillColor(233,243,250);doc.roundedRect(x0,50,58,21,3,3,'F');doc.setTextColor(70,85,96);doc.setFontSize(7);doc.text(x,x0+4,57);doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...(i===0?green:i===1?orange:navy));doc.text(vals[i],x0+4,67)})
     if(r.is_closed){doc.setTextColor(...green);doc.setFontSize(8);doc.text(`CUENTA LIQUIDADA · Saldo pendiente actual: S/ 0.00`,12,78)}
-    autoTable(doc,{startY:r.is_closed?83:78,head:[['Fecha','Tipo','Detalle','Monto','Sustento']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e)+(e.issue_time?` · ${e.issue_time}`:''),(e.entry_type==='credit'?'+':'−')+money(e.amount),supportExportLabel(e)]),headStyles:{fillColor:navy},styles:{fontSize:7,cellPadding:2},columnStyles:{3:{halign:'right'}}})
+    autoTable(doc,{startY:r.is_closed?83:78,head:[['Fecha','Tipo','Detalle','Monto','Sustento']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e)+(cleanText(e.issue_time)?` · ${cleanText(e.issue_time)}`:''),(e.entry_type==='credit'?'+':'−')+money(e.amount),supportExportLabel(e)]),headStyles:{fillColor:navy},styles:{fontSize:7,cellPadding:2},columnStyles:{3:{halign:'right'}}})
   }
   for(const b of bundles){
     for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){
-      const data=await entryImageData(e).catch(()=>null);if(!data && e.support_type?.includes('declaration')){addDeclarationPdf(doc,e,b.report,autoTable);continue}if(!data)continue
-      doc.addPage();doc.setFillColor(...green);doc.rect(12,12,186,10,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(`${e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':'EVIDENCIA DE BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)}${hasReceipt(e)?` · ${receiptDeliveryText(e).toUpperCase()}`:''}`,105,19,{align:'center'})
+      const kind=supportKind(e);const data=await entryImageData(e).catch(()=>null);if(!data && kind==='declaration'){addDeclarationPdf(doc,e,b.report,autoTable);continue}if(!data)continue
+      doc.addPage();doc.setFillColor(...green);doc.rect(12,12,186,10,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(`${kind==='declaration'?'DECLARACIÓN JURADA':'EVIDENCIA DE BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)}${kind==='receipt'?` · ${receiptDeliveryText(e).toUpperCase()}`:''}`,105,19,{align:'center'})
       try{const props=doc.getImageProperties(data);const maxW=174,maxH=250;const sc=Math.min(maxW/props.width,maxH/props.height);const w=props.width*sc,h=props.height*sc;doc.addImage(data,props.fileType||'JPEG',18+(174-w)/2,30,w,h)}catch{}
     }
   }
@@ -622,7 +631,7 @@ function addDeclarationPdf(doc,e,r,autoTable){
     body:[
       ['Fecha del pasaje',formatDate(e.entry_date),'Monto pagado',money(e.amount)],
       ['Origen',e.origin||'—','Destino',e.destination||'—'],
-      ['Ingeniero responsable',e.engineer_name||r.engineer_name||'—','Motivo',e.declaration_reason||'Servicio sin emisión de comprobante']
+      ['Ingeniero responsable',e.engineer_name||r.engineer_name||'—','Motivo',cleanText(e.declaration_reason)||'Servicio sin emisión de comprobante']
     ],
     theme:'grid',
     styles:{fontSize:8,cellPadding:3,lineColor:line,lineWidth:.2,valign:'middle'},
@@ -637,7 +646,7 @@ function addDeclarationPdf(doc,e,r,autoTable){
   y+=lines.length*5.1+7
   doc.setFillColor(255,248,225);doc.setDrawColor(235,215,160);doc.roundedRect(16,y,178,13,2,2,'FD')
   doc.setTextColor(85,67,28);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('Lugar y fecha de firma',20,y+5)
-  doc.setFont('helvetica','normal');doc.text(e.declaration_place_date||'—',20,y+10)
+  doc.setFont('helvetica','normal');doc.text(cleanText(e.declaration_place_date)||'—',20,y+10)
   y+=24
   doc.setDrawColor(70,85,96);doc.line(24,y+20,88,y+20);doc.line(122,y+20,186,y+20)
   if(e.signature_base64){try{doc.addImage(`data:image/png;base64,${e.signature_base64}`,'PNG',37,y-4,38,22)}catch{}}
@@ -656,9 +665,9 @@ async function downloadAllExcel(bundles){
     ws.getRow(row).values=['Recibido',Number(s.received),'Gastado',Number(s.spent),r.is_closed?`Saldo liquidado S/ 0.00`:`Saldo ${money(s.balance)}`];ws.getRow(row).eachCell(x=>{x.border=border;x.alignment={vertical:'middle'}});ws.getCell(row,2).numFmt='"S/ "#,##0.00';ws.getCell(row,4).numFmt='"S/ "#,##0.00';row++
     if(r.is_closed){ws.mergeCells(row,1,row,5);ws.getCell(row,1).value=(raw>0?`Devolución al cierre: ${money(Math.abs(raw))}`:raw<0?`Regularización al cierre: ${money(Math.abs(raw))}`:'Sin ajuste de cierre')+' · Cuenta liquidada';ws.getCell(row,1).font={bold:true,color:{argb:'FF116B5A'}};row++}
     const head=ws.getRow(row);head.values=['Fecha','Tipo','Detalle','Monto','Sustento'];head.eachCell(x=>{x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};x.border=border;x.alignment={horizontal:'center'}});row++
-    entries.forEach(e=>{const rr=ws.getRow(row);rr.values=[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(e.issue_time?` · Hora ${e.issue_time}`:''),Number(e.amount),supportExportLabel(e).toUpperCase()];rr.eachCell(x=>{x.border=border;x.alignment={vertical:'middle',wrapText:true}});rr.getCell(4).numFmt='"S/ "#,##0.00';row++});row+=2}
+    entries.forEach(e=>{const rr=ws.getRow(row);rr.values=[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(cleanText(e.issue_time)?` · Hora ${cleanText(e.issue_time)}`:''),Number(e.amount),supportExportLabel(e).toUpperCase()];rr.eachCell(x=>{x.border=border;x.alignment={vertical:'middle',wrapText:true}});rr.getCell(4).numFmt='"S/ "#,##0.00';row++});row+=2}
   const ev=wb.addWorksheet('Evidencias',{views:[{showGridLines:false}]});ev.columns=Array.from({length:8},()=>({width:15}));let er=1
-  for(const b of bundles){for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){const data=await entryImageData(e).catch(()=>null);ev.mergeCells(er,1,er,8);let c=ev.getCell(er,1);c.value=`${e.support_type?.includes('declaration')?'DECLARACIÓN JURADA':'BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)} · ${movementDetail(e)}${hasReceipt(e)?` · ${receiptDeliveryText(e).toUpperCase()}`:''}`;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:e.support_type?.includes('declaration')?'FF17324D':'FF19856F'}};c.alignment={horizontal:'center'};er++
+  for(const b of bundles){for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){const kind=supportKind(e);const data=await entryImageData(e).catch(()=>null);ev.mergeCells(er,1,er,8);let c=ev.getCell(er,1);c.value=`${kind==='declaration'?'DECLARACIÓN JURADA':'BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)} · ${movementDetail(e)}${kind==='receipt'?` · ${receiptDeliveryText(e).toUpperCase()}`:''}`;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:kind==='declaration'?'FF17324D':'FF19856F'}};c.alignment={horizontal:'center'};er++
       if(data){try{const m=String(data).match(/^data:image\/(png|jpeg|jpg);base64,(.*)$/i);if(m){const id=wb.addImage({base64:m[2],extension:m[1].toLowerCase()==='png'?'png':'jpeg'});ev.addImage(id,{tl:{col:1,row:er-1},ext:{width:430,height:570}});er+=31}}catch{er+=2}}else{ev.mergeCells(er,1,er+4,8);ev.getCell(er,1).value=declarationText(e,b.report);ev.getCell(er,1).alignment={wrapText:true,vertical:'middle'};er+=6}er+=2}}
   const buffer=await wb.xlsx.writeBuffer();saveAs(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'APC_Transporte_Consolidado.xlsx')
 }
