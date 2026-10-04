@@ -34,24 +34,42 @@ const movementDetail = e => {
 }
 const isLost = e => /extraviad|perdid|sustra/i.test(e.support_note || '')
 const isShown = e => /ya mostr/i.test(e.support_note || '')
+const supportType = e => cleanText(e?.support_type).toLowerCase()
+const supportAsset = e => cleanText(e?.support_asset)
+const assetLooksDeclaration = e => /declaraci[oó]n|declaration/i.test(supportAsset(e))
+
+// La web NO debe asumir que existe una boleta solo porque un registro antiguo
+// conserve support_type='receipt' o 'receipt_declaration'. La prueba fuerte de
+// una boleta es la imagen/base64, un archivo de boleta o el histórico "Ya mostrada".
+const hasReceiptFile = e => e?.entry_type==='expense' && !isLost(e) && !!(
+  cleanText(e?.receipt_image_base64) ||
+  (supportAsset(e) && supportType(e).includes('receipt') && !assetLooksDeclaration(e))
+)
 const hasDeclaration = e => e?.entry_type==='expense' && !!(
-  e.support_type?.includes('declaration') || cleanText(e.declaration_reason) || cleanText(e.declaration_place_date)
+  supportType(e).includes('declaration') ||
+  assetLooksDeclaration(e) ||
+  cleanText(e?.declaration_reason) ||
+  cleanText(e?.declaration_place_date)
 )
-const hasReceipt = e => e?.entry_type==='expense' && !isLost(e) && !!(
-  e.receipt_image_base64 || e.support_type?.includes('receipt') || isShown(e)
+const hasReceiptFallback = e => e?.entry_type==='expense' && !isLost(e) && !!(
+  isShown(e) || (supportType(e)==='receipt' && !hasDeclaration(e))
 )
+const hasReceipt = e => hasReceiptFile(e) || hasReceiptFallback(e)
 const canOpenReceipt = e => !!(
-  e?.receipt_image_base64 ||
-  (e?.support_asset && !e?.support_type?.includes('declaration')) ||
-  (e?.support_asset && e?.support_type?.includes('receipt'))
+  cleanText(e?.receipt_image_base64) ||
+  (supportAsset(e) && supportType(e).includes('receipt') && !assetLooksDeclaration(e))
 )
+
 // Un gasto usa un solo sustento visible: boleta O declaración jurada.
-// Si existe una boleta, siempre tiene prioridad y la declaración no se muestra.
+// 1) Si hay una boleta REAL (imagen/archivo), gana la boleta.
+// 2) Si no hay archivo de boleta pero sí datos de declaración, se muestra la declaración.
+// 3) Los indicadores heredados de versiones antiguas solo se usan como último recurso.
 const supportKind = e => {
   if(e?.entry_type!=='expense') return 'none'
   if(isLost(e)) return hasDeclaration(e) ? 'declaration' : 'lost'
-  if(hasReceipt(e)) return 'receipt'
+  if(hasReceiptFile(e)) return 'receipt'
   if(hasDeclaration(e)) return 'declaration'
+  if(hasReceiptFallback(e)) return 'receipt'
   return 'none'
 }
 const canOpenDeclaration = e => supportKind(e)==='declaration' && hasDeclaration(e)
