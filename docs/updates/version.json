@@ -1,7 +1,7 @@
 {
-    "versionCode":  15,
-    "versionName":  "2.4",
+    "versionCode":  16,
+    "versionName":  "2.5",
     "apkUrl":  "https://luquesmith.github.io/RPTransporte/updates/APC_Corporacion.apk",
-    "notes":  "Version publicada de APC Corporacion.",
+    "notes":  "VersiÃ³n 2.5: movimientos ordenados automÃ¡ticamente por fecha, de la mÃ¡s reciente a la mÃ¡s antigua.",
     "required":  false
 }
