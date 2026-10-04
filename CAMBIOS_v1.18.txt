@@ -1,0 +1,9 @@
+APC Transporte Web v1.18 — ORDEN POR FECHA
+
+- Los movimientos se ordenan automáticamente por fecha, de la más reciente a la más antigua.
+- El orden ya no depende del momento en que se registró el gasto o crédito.
+- Ejemplo: si registras primero 30/09 y después 25/09, la web mostrará 30/09 arriba y 25/09 debajo.
+- Si dos movimientos tienen la misma fecha, conservan entre ellos el orden que ya tenían.
+- El orden se aplica al reporte actual, períodos anteriores, filtro de fechas, vista PC y vista móvil.
+- También se normaliza el orden al cargar los datos para que PDF/Excel usen la misma secuencia.
+- No cambia cálculos, Supabase, comprobantes, declaraciones ni estados de entrega.

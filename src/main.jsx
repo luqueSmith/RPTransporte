@@ -61,6 +61,23 @@ const sortBundles = list => [...list].sort((a,b)=>{
   return String(b.report?.period_start||'').localeCompare(String(a.report?.period_start||''))
 })
 
+// Orden fijo de movimientos: fecha más reciente primero.
+// Si dos movimientos tienen la misma fecha, se conserva su orden original.
+const sortEntriesNewestFirst = entries => [...(entries || [])]
+  .map((entry,index)=>({entry,index}))
+  .sort((a,b)=>{
+    const da=String(a.entry?.entry_date||'').slice(0,10)
+    const db=String(b.entry?.entry_date||'').slice(0,10)
+    if(da!==db) return db.localeCompare(da)
+    return a.index-b.index
+  })
+  .map(x=>x.entry)
+
+const normalizeBundleEntries = bundle => bundle ? {
+  ...bundle,
+  entries: sortEntriesNewestFirst(bundle.entries || [])
+} : bundle
+
 const inDateRange = (date, from, to) => {
   const d=String(date||'').slice(0,10)
   if(!d) return false
@@ -94,7 +111,7 @@ function App(){
   const pending = useMemo(()=>bundles.filter(b=>!b.report?.is_closed && !!b.report?.period_end).sort((a,b)=>String(b.report.period_start).localeCompare(String(a.report.period_start))),[bundles])
   const closed = useMemo(()=>bundles.filter(b=>b.report?.is_closed).sort((a,b)=>String(b.report.period_start).localeCompare(String(a.report.period_start))),[bundles])
   const dateFilterActive=!!(dateFrom||dateTo)
-  const filterEntries=entries=>dateFilterActive?(entries||[]).filter(e=>inDateRange(e.entry_date,dateFrom,dateTo)):(entries||[])
+  const filterEntries=entries=>sortEntriesNewestFirst(dateFilterActive?(entries||[]).filter(e=>inDateRange(e.entry_date,dateFrom,dateTo)):(entries||[]))
   const periodHasMatches=b=>!dateFilterActive||filterEntries(b.entries).length>0
   const matchCount=useMemo(()=>bundles.reduce((n,b)=>n+filterEntries(b.entries).length,0),[bundles,dateFrom,dateTo])
 
@@ -122,13 +139,13 @@ function App(){
       let currentBundle=null
 
       if(currentRow){
-        currentBundle=await retryCall(()=>getReport(p,currentRow.id),2)
+        currentBundle=normalizeBundleEntries(await retryCall(()=>getReport(p,currentRow.id),2))
         setBundles(prev=>sortBundles([currentBundle,...prev.filter(b=>b.report?.id!==currentBundle.report?.id)]))
       }
 
       const restRows=ordered.filter(r=>r.id!==currentRow?.id)
       const results=await Promise.allSettled(restRows.map(r=>retryCall(()=>getReport(p,r.id),2)))
-      const rest=results.filter(x=>x.status==='fulfilled').map(x=>x.value)
+      const rest=results.filter(x=>x.status==='fulfilled').map(x=>normalizeBundleEntries(x.value))
       const failed=results.filter(x=>x.status==='rejected').length
       setBundles(sortBundles([...(currentBundle?[currentBundle]:[]),...rest]))
       if(failed) setError('El reporte actual cargó, pero algunas evidencias anteriores tardaron en responder. Puedes pulsar Actualizar.')
@@ -254,6 +271,7 @@ function PeriodSection({bundle,current=false,pending=false,filtered=false,collap
 }
 
 function MovementTable({entries,onEvidence,filterControl=null}){
+  entries=sortEntriesNewestFirst(entries)
   return <>
     <div className="movements-heading">
       <div className="movements-title">

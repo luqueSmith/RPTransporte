@@ -1,0 +1,12 @@
+APC TRANSPORTE WEB v1.18
+
+Para publicar:
+1. Descomprime esta carpeta.
+2. Ejecuta ACTUALIZAR_WEB_V1.18.ps1.
+3. Espera a que aparezca LISTO.
+4. Espera 1–3 minutos y abre:
+   https://luquesmith.github.io/RPTransporte/
+5. En el navegador puedes usar Ctrl+F5.
+
+Cambio principal:
+Todos los movimientos se ordenan automáticamente desde la fecha más reciente hacia la más antigua.
