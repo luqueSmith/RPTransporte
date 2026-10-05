@@ -4,7 +4,7 @@ import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, CircleAlert, Download, Eye, FileSpreadsheet, FileText, Filter,
   LogOut, MessageSquareText, MoonStar, RefreshCw, RotateCcw, Route, SunMedium, WalletCards, X
 } from 'lucide-react'
-import { getReport, listReports, login, reviewReport } from './supabase'
+import { getReport, listReports, login, reviewReport, setEntryExcluded } from './supabase'
 import './styles.css'
 
 const asset = name => `${import.meta.env.BASE_URL}${name}`
@@ -35,6 +35,7 @@ const movementDetail = e => {
 const isLost = e => /extraviad|perdid|sustra/i.test(e.support_note || '')
 const isShown = e => /ya mostr/i.test(e.support_note || '')
 const supportType = e => cleanText(e?.support_type).toLowerCase()
+const isExcluded = e => !!e?.is_excluded
 const supportAsset = e => cleanText(e?.support_asset)
 const assetLooksDeclaration = e => /declaraci[oó]n|declaration/i.test(supportAsset(e))
 
@@ -77,10 +78,11 @@ const canOpenSupport = e => supportKind(e)==='receipt' ? canOpenReceipt(e) : can
 const receiptDeliveryText = e => e?.receipt_delivered ? 'Entregada' : 'Pendiente de entregar'
 const supportExportLabel = e => {
   const kind=supportKind(e)
-  if(kind==='receipt') return `Boleta · ${receiptDeliveryText(e)}`
-  if(kind==='declaration') return 'Declaración jurada'
-  if(kind==='lost') return 'Boleta extraviada'
-  return '—'
+  let label='—'
+  if(kind==='receipt') label=`Boleta · ${receiptDeliveryText(e)}`
+  else if(kind==='declaration') label='Declaración jurada'
+  else if(kind==='lost') label='Boleta extraviada'
+  return isExcluded(e) ? `NO CONSIDERADO · ${label}` : label
 }
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const friendlyError = e => {
@@ -238,6 +240,20 @@ function App(){
     catch(e){setError(friendlyError(e))}
     finally{setLoading(false)}
   }
+  async function changeEntryIncluded(entry, exclude){
+    if(!entry?.id) return
+    const kind=entry.entry_type==='credit'?'crédito':'gasto'
+    const message=exclude
+      ? `¿No considerar este ${kind} de ${money(entry.amount)} en los cálculos?\n\nEl movimiento seguirá visible y podrás restaurarlo si fue un error.`
+      : `¿Restaurar este ${kind} de ${money(entry.amount)}?\n\nVolverá a sumar o restar en los totales del reporte.`
+    if(!window.confirm(message)) return
+    setLoading(true);setError('')
+    try{
+      await retryCall(()=>setEntryExcluded(pin,entry.id,exclude),2)
+      await refreshAll()
+    }catch(e){setError(friendlyError(e))}
+    finally{setLoading(false)}
+  }
   function logout(){sessionStorage.removeItem('apc_pin');setLogged(false);setBundles([]);setPin('')}
 
   if(!logged) return <Login pin={pin} setPin={setPin} onLogin={()=>doLogin()} loading={loading} error={error} theme={theme} setTheme={setTheme}/>
@@ -275,6 +291,7 @@ function App(){
             filtered={movementFilterActive}
             filterControl={<MovementFilters dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} typeFilter={typeFilter} setTypeFilter={setTypeFilter} directionFilter={directionFilter} setDirectionFilter={setDirectionFilter} active={movementFilterActive}/>}
             onEvidence={(item,kind)=>setModal({item,kind,report:current.report})}
+            onEntryReview={changeEntryIncluded}
           />
           {current.report.status!=='draft' && <ReviewPanel bundle={current} onReview={review}/>} 
         </>}
@@ -282,7 +299,7 @@ function App(){
         {!!pending.filter(periodHasMatches).length && <div className="past-title"><span className="eyebrow">ENVIADOS</span><h2>Pendientes de revisión o liquidación</h2><p>Estos periodos ya terminaron, pero todavía no se han marcado como cuentas liquidadas desde la APK.</p></div>}
         {pending.filter(periodHasMatches).map(b=><React.Fragment key={b.report.id}>
           <div className="section-marker pending-marker"><div className="marker-copy"><span>PERÍODO FINALIZADO</span><small>{formatDate(b.report.period_start)} – {formatDate(b.report.period_end)}</small></div><b>{statusMeta[b.report.status]?.[0]||'En revisión'}</b></div>
-          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} pending filtered={movementFilterActive} onEvidence={(item,kind)=>setModal({item,kind,report:b.report})}/>
+          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} pending filtered={movementFilterActive} onEvidence={(item,kind)=>setModal({item,kind,report:b.report})} onEntryReview={changeEntryIncluded}/>
           <ReviewPanel bundle={b} onReview={review}/>
         </React.Fragment>)}
 
@@ -344,7 +361,7 @@ function Login({pin,setPin,onLogin,loading,error,theme,setTheme}){
   </div></div>
 }
 
-function PeriodSection({bundle,current=false,pending=false,filtered=false,collapsible=false,filterControl=null,onEvidence}){
+function PeriodSection({bundle,current=false,pending=false,filtered=false,collapsible=false,filterControl=null,onEvidence,onEntryReview}){
   const {report,summary,entries=[]}=bundle
   const status=statusMeta[report.status]||[report.status,'neutral']
   const period=report.period_end?`${longDate(report.period_start)} – ${longDate(report.period_end)}`:`Desde ${longDate(report.period_start)}`
@@ -362,11 +379,11 @@ function PeriodSection({bundle,current=false,pending=false,filtered=false,collap
     {!active && <div className="closure-note"><CheckCircle2 size={17}/><div><strong>Cuenta liquidada · saldo S/ 0.00</strong><span>{report.closure_note || (raw>0?'El saldo sobrante fue devuelto al finalizar el período.':raw<0?'La diferencia pendiente fue regularizada al finalizar el período.':'El período cerró sin saldo pendiente.')}</span></div></div>}
     {filtered && <div className="period-filter-note"><Filter size={14}/> Mostrando solo movimientos que coinciden con los filtros seleccionados. Los totales superiores corresponden al período completo.</div>}
 
-    {collapsible ? <details className="closed-movements-details"><summary><span><CalendarDays size={16}/> Movimientos y sustentos</span><b>{entries.length} {entries.length===1?'registro':'registros'}</b><ChevronDown size={18}/></summary><div className="closed-movements-body"><MovementTable entries={entries} onEvidence={onEvidence}/></div></details> : <MovementTable entries={entries} onEvidence={onEvidence} filterControl={filterControl}/>}
+    {collapsible ? <details className="closed-movements-details"><summary><span><CalendarDays size={16}/> Movimientos y sustentos</span><b>{entries.length} {entries.length===1?'registro':'registros'}</b><ChevronDown size={18}/></summary><div className="closed-movements-body"><MovementTable entries={entries} onEvidence={onEvidence} allowReview={false}/></div></details> : <MovementTable entries={entries} onEvidence={onEvidence} filterControl={filterControl} allowReview={active} onEntryReview={onEntryReview}/>}
   </section>
 }
 
-function MovementTable({entries,onEvidence,filterControl=null}){
+function MovementTable({entries,onEvidence,filterControl=null,allowReview=false,onEntryReview}){
   entries=sortEntriesNewestFirst(entries)
   return <>
     <div className="movements-heading">
@@ -375,7 +392,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
         <div>
           <span className="eyebrow">MOVIMIENTOS</span>
           <h3>Detalle de transporte</h3>
-          <p>{entries.length} {entries.length===1?'registro':'registros'} · Cada fila indica qué ocurrió, cuánto fue y qué documento lo sustenta.</p>
+          <p>{entries.length} {entries.length===1?'registro':'registros'}{entries.some(isExcluded)?` · ${entries.filter(isExcluded).length} no considerado(s)`:''} · Cada fila indica qué ocurrió, cuánto fue y qué documento lo sustenta.</p>
         </div>
       </div>
       <div className="movements-tools">
@@ -387,7 +404,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
       </div>
     </div>
 
-    <div className="movement-help"><span className="movement-help-credit">+ suma al saldo</span><span className="movement-help-expense">− descuenta del saldo</span><span>En “Sustento” se muestra un solo documento por gasto: boleta o declaración jurada. Si hay boleta, también verás si ya fue entregada.</span></div>
+    <div className="movement-help"><span className="movement-help-credit">+ suma al saldo</span><span className="movement-help-expense">− descuenta del saldo</span><span>Los movimientos marcados como “No considerado” permanecen visibles, pero no entran en los totales. Puedes restaurarlos en cualquier momento.</span></div>
 
     <div className="desktop-movement-table">
       <div className="table-wrap movement-table-wrap spreadsheet-wrap">
@@ -401,13 +418,14 @@ function MovementTable({entries,onEvidence,filterControl=null}){
               <th className="col-time">Hora</th>
               <th className="right col-amount">Importe</th>
               <th className="col-support">Sustento</th>
+              {allowReview && <th className="col-review">Revisión</th>}
             </tr>
           </thead>
           <tbody>
-            {!entries.length && <tr className="movement-empty-row"><td colSpan="7"><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></td></tr>}
+            {!entries.length && <tr className="movement-empty-row"><td colSpan={allowReview?8:7}><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></td></tr>}
             {entries.map((e,index)=>{
               const isCredit=e.entry_type==='credit'
-              return <tr key={e.id} className={`movement-row ${e.entry_type}`}>
+              return <tr key={e.id} className={`movement-row ${e.entry_type} ${isExcluded(e)?'excluded':''}`}>
                 <td data-label="N.º" className="movement-number-cell"><span className="row-number">{index+1}</span></td>
                 <td data-label="Fecha" className="movement-date-cell"><span className="date-chip"><CalendarDays size={14}/>{formatDate(e.entry_date)}</span></td>
                 <td data-label="Movimiento" className="movement-type-cell"><span className={`type-pill ${e.entry_type}`}>{isCredit?<ArrowDownLeft size={13}/>:<ArrowUpRight size={13}/>} {isCredit?'RECIBIDO':'GASTO'}</span></td>
@@ -420,6 +438,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
                 <td data-label="Hora" className="movement-time-cell"><span className="table-time">{cleanText(e.issue_time)||'—'}</span></td>
                 <td data-label="Importe" className={`right amount ${e.entry_type} movement-amount-cell`}><span className="amount-box"><b>{isCredit?'+':'−'}{money(e.amount)}</b></span></td>
                 <td data-label="Sustento" className="movement-support-cell"><SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/></td>
+                {allowReview && <td data-label="Revisión" className="movement-review-cell"><EntryReviewControl item={e} onChange={onEntryReview}/></td>}
               </tr>
             })}
           </tbody>
@@ -431,7 +450,7 @@ function MovementTable({entries,onEvidence,filterControl=null}){
       {!entries.length && <div className="mobile-movement-empty"><CalendarDays size={18}/><span>No hay movimientos que coincidan con estas fechas.</span></div>}
       {entries.map((e,index)=>{
         const isCredit=e.entry_type==='credit'
-        return <article key={`mobile-${e.id}`} className={`mobile-movement-card ${e.entry_type}`}>
+        return <article key={`mobile-${e.id}`} className={`mobile-movement-card ${e.entry_type} ${isExcluded(e)?'excluded':''}`}>
           <div className="mobile-movement-card-head">
             <span className="mobile-row-number">{index+1}</span>
             <span className="mobile-card-date"><CalendarDays size={15}/>{formatDate(e.entry_date)}</span>
@@ -458,10 +477,25 @@ function MovementTable({entries,onEvidence,filterControl=null}){
             <span className="mobile-field-label">Sustento</span>
             <SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/>
           </div>
+          {allowReview && <div className="mobile-card-review">
+            <span className="mobile-field-label">Revisión</span>
+            <EntryReviewControl item={e} onChange={onEntryReview} mobile/>
+          </div>}
         </article>
       })}
     </div>
   </>
+}
+
+function EntryReviewControl({item,onChange,mobile=false}){
+  const excluded=isExcluded(item)
+  if(excluded) return <div className={`entry-review-control excluded ${mobile?'mobile':''}`}>
+    <span className="entry-review-state"><CircleAlert size={13}/> No considerado</span>
+    <button type="button" className="entry-review-action restore" onClick={()=>onChange?.(item,false)}><RotateCcw size={13}/> Restaurar</button>
+  </div>
+  return <div className={`entry-review-control ${mobile?'mobile':''}`}>
+    <button type="button" className="entry-review-action exclude" onClick={()=>onChange?.(item,true)}><X size={13}/> No considerar</button>
+  </div>
 }
 
 function SupportCell({item,onOpen}){

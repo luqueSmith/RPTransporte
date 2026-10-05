@@ -34,3 +34,13 @@ export async function reviewReport(pin, reportId, action, note, reviewedBy) {
   if (error) throw error
   return data
 }
+
+export async function setEntryExcluded(pin, entryId, excluded) {
+  const { data, error } = await supabase.rpc('apc_set_entry_excluded', {
+    p_pin: pin,
+    p_entry_id: entryId,
+    p_excluded: !!excluded
+  })
+  if (error) throw error
+  return data
+}

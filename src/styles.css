@@ -1123,3 +1123,72 @@
     background:color-mix(in srgb,var(--soft-green) 52%,var(--surface));
   }
 }
+
+/* ==========================================================
+   v1.22 · Revisión de movimientos por el administrador
+   ========================================================== */
+.friendly-movement-table.spreadsheet-table{min-width:1160px}
+.friendly-movement-table.spreadsheet-table thead th.col-detail{width:30%!important}
+.friendly-movement-table.spreadsheet-table thead th.col-support{width:195px!important}
+.friendly-movement-table.spreadsheet-table thead th.col-review{width:128px!important;text-align:center}
+.spreadsheet-table .movement-review-cell{text-align:center!important;padding-left:8px;padding-right:8px}
+.entry-review-control{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap}
+.entry-review-control.excluded{flex-direction:column;gap:4px}
+.entry-review-state{display:inline-flex;align-items:center;gap:4px;color:var(--red);font-size:8.4px;font-weight:900;white-space:nowrap}
+.entry-review-action{appearance:none;border:0;background:transparent;padding:4px 2px;display:inline-flex;align-items:center;justify-content:center;gap:4px;font:inherit;font-size:8.6px;font-weight:900;cursor:pointer;white-space:nowrap}
+.entry-review-action.exclude{color:#9b3e35}
+.entry-review-action.restore{color:var(--green-dark)}
+.entry-review-action:hover{text-decoration:underline}
+
+/* El movimiento sigue visible para auditoría, pero se entiende que ya no forma parte del cálculo. */
+.spreadsheet-table tbody tr.excluded td{background:color-mix(in srgb,var(--surface-2) 82%,#d9dde0)!important;color:var(--muted)}
+.spreadsheet-table tbody tr.excluded:nth-child(even) td{background:color-mix(in srgb,var(--surface-2) 88%,#d9dde0)!important}
+.spreadsheet-table tbody tr.excluded .table-detail-copy span,
+.spreadsheet-table tbody tr.excluded .table-time,
+.spreadsheet-table tbody tr.excluded .date-chip{color:var(--muted)}
+.spreadsheet-table tbody tr.excluded .movement-amount-cell .amount-box b{text-decoration:line-through;opacity:.62}
+.spreadsheet-table tbody tr.excluded .type-pill{filter:saturate(.45);opacity:.72}
+.spreadsheet-table tbody tr.excluded td:first-child{border-left-color:#9aa5ad!important}
+:root[data-theme="dark"] .spreadsheet-table tbody tr.excluded td{background:#202a30!important;color:#9eabb2}
+:root[data-theme="dark"] .spreadsheet-table tbody tr.excluded:nth-child(even) td{background:#222d33!important}
+
+@media(max-width:1180px) and (min-width:621px){
+  .friendly-movement-table.spreadsheet-table{min-width:1120px}
+  .friendly-movement-table.spreadsheet-table thead th.col-detail{width:260px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-support{width:180px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-review{width:118px!important}
+}
+
+@media(max-width:620px){
+  .mobile-movement-card.excluded{
+    border-left-color:#98a4ac!important;
+    background:color-mix(in srgb,var(--surface) 88%,#e0e4e7)!important;
+  }
+  :root[data-theme="dark"] .mobile-movement-card.excluded{background:#1d282e!important}
+  .mobile-movement-card.excluded .mobile-card-detail strong,
+  .mobile-movement-card.excluded .mobile-summary-cell strong{opacity:.65}
+  .mobile-movement-card.excluded .mobile-summary-amount strong{text-decoration:line-through}
+  .mobile-card-review{margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+  .mobile-card-review .entry-review-control{width:100%;justify-content:flex-start;margin-top:5px}
+  .mobile-card-review .entry-review-control.excluded{align-items:flex-start}
+  .mobile-card-review .entry-review-action{
+    min-height:36px;
+    padding:8px 11px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:var(--surface-2);
+    font-size:10px;
+    text-decoration:none!important;
+  }
+  .mobile-card-review .entry-review-action.exclude{
+    color:#9b3e35;
+    border-color:color-mix(in srgb,#b7463c 25%,var(--line));
+    background:color-mix(in srgb,#fff1ef 70%,var(--surface));
+  }
+  .mobile-card-review .entry-review-action.restore{
+    color:var(--green-dark);
+    border-color:color-mix(in srgb,var(--green) 24%,var(--line));
+    background:var(--soft-green);
+  }
+  .mobile-card-review .entry-review-state{font-size:9.5px}
+}
