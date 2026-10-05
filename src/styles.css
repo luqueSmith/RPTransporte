@@ -1192,3 +1192,91 @@
   }
   .mobile-card-review .entry-review-state{font-size:9.5px}
 }
+
+/* ==========================================================
+   v1.23 · Revisión final: botones claros y cambio SOLO web
+   ========================================================== */
+.friendly-movement-table.spreadsheet-table{min-width:1120px}
+.friendly-movement-table.spreadsheet-table thead th.col-detail{width:26%!important}
+.friendly-movement-table.spreadsheet-table thead th.col-support{width:180px!important}
+.friendly-movement-table.spreadsheet-table thead th.col-review{width:165px!important;text-align:center}
+.spreadsheet-table .movement-review-cell{padding:8px 9px!important;text-align:center!important}
+
+.entry-review-control{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+.entry-review-control.excluded{flex-direction:column;gap:6px}
+.entry-review-state{
+  display:inline-flex;align-items:center;gap:5px;
+  color:#9b3e35;font-size:8.6px;font-weight:900;white-space:nowrap;
+  padding:4px 7px;border-radius:999px;
+  background:color-mix(in srgb,#c4483e 9%,var(--surface));
+  border:1px solid color-mix(in srgb,#c4483e 22%,var(--line));
+}
+.entry-review-button{
+  appearance:none;
+  min-height:31px;
+  border-radius:9px;
+  padding:6px 9px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  font:inherit;
+  font-size:8.6px;
+  line-height:1.15;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+  box-shadow:0 2px 7px rgba(23,50,77,.06);
+  transition:transform .15s ease,border-color .15s ease,background .15s ease,box-shadow .15s ease;
+}
+.entry-review-button.exclude{
+  color:#96372f;
+  border:1px solid color-mix(in srgb,#c4483e 34%,var(--line));
+  background:color-mix(in srgb,#fff1ef 72%,var(--surface));
+}
+.entry-review-button.restore{
+  color:var(--green-dark);
+  border:1px solid color-mix(in srgb,var(--green) 34%,var(--line));
+  background:color-mix(in srgb,var(--soft-green) 72%,var(--surface));
+}
+.entry-review-button:hover:not(:disabled){
+  transform:translateY(-1px);
+  box-shadow:0 5px 12px rgba(23,50,77,.10);
+}
+.entry-review-button.exclude:hover:not(:disabled){border-color:#c4483e;background:color-mix(in srgb,#ffe5e1 82%,var(--surface))}
+.entry-review-button.restore:hover:not(:disabled){border-color:var(--green);background:var(--soft-green)}
+.entry-review-button:focus-visible{outline:3px solid color-mix(in srgb,var(--green) 22%,transparent);outline-offset:2px}
+.entry-review-button:disabled{opacity:.58;cursor:wait;transform:none;box-shadow:none}
+
+:root[data-theme="dark"] .entry-review-state{
+  color:#ffb0a9;background:#342321;border-color:#5d3530;
+}
+:root[data-theme="dark"] .entry-review-button.exclude{
+  color:#ffb0a9;background:#30211f;border-color:#5f3732;
+}
+:root[data-theme="dark"] .entry-review-button.restore{
+  color:#75e1c5;background:#17352f;border-color:#2d675a;
+}
+
+/* Mantiene el registro visible por auditoría, pero deja claro que no suma/resta. */
+.spreadsheet-table tbody tr.excluded .movement-review-cell{background:color-mix(in srgb,var(--surface-2) 82%,#d9dde0)!important}
+.spreadsheet-table tbody tr.excluded .support-link,
+.spreadsheet-table tbody tr.excluded .support-status,
+.spreadsheet-table tbody tr.excluded .support-text{opacity:.72}
+
+@media(max-width:1180px) and (min-width:621px){
+  .friendly-movement-table.spreadsheet-table{min-width:1080px}
+  .friendly-movement-table.spreadsheet-table thead th.col-detail{width:245px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-support{width:170px!important}
+  .friendly-movement-table.spreadsheet-table thead th.col-review{width:155px!important}
+}
+
+@media(max-width:620px){
+  .mobile-card-review{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+  .mobile-card-review .entry-review-control{width:100%;justify-content:stretch;align-items:stretch;margin-top:6px}
+  .mobile-card-review .entry-review-control.excluded{align-items:stretch}
+  .mobile-card-review .entry-review-state{align-self:flex-start;font-size:10px;padding:5px 8px}
+  .mobile-card-review .entry-review-button{
+    width:100%;min-height:43px;padding:10px 12px;border-radius:11px;font-size:11px;
+  }
+}

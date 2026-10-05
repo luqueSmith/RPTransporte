@@ -87,6 +87,7 @@ const supportExportLabel = e => {
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const friendlyError = e => {
   const m = String(e?.message || e || '')
+  if (/apc_web_set_entry_excluded|schema cache|could not find the function/i.test(m)) return 'La revisión de movimientos todavía no está activada en Supabase. Ejecuta el SQL v1.23 una sola vez y luego pulsa Actualizar.'
   if (/failed to fetch|network|load failed|fetch/i.test(m)) return 'La conexión con el reporte está tardando. Intenta nuevamente en unos segundos.'
   return m || 'No se pudo completar la operación'
 }
@@ -118,6 +119,28 @@ const normalizeBundleEntries = bundle => bundle ? {
   ...bundle,
   entries: sortEntriesNewestFirst(bundle.entries || [])
 } : bundle
+
+// Recalcula los importes visibles de la WEB sin tocar los datos de la APK.
+// Los movimientos fuera del cálculo siguen existiendo y pueden restaurarse.
+const recalcWebSummary = bundle => {
+  if(!bundle) return bundle
+  const entries=bundle.entries||[]
+  const considered=entries.filter(e=>!isExcluded(e))
+  const received=considered.filter(e=>e.entry_type==='credit').reduce((n,e)=>n+Number(e.amount||0),0)
+  const spent=considered.filter(e=>e.entry_type==='expense').reduce((n,e)=>n+Number(e.amount||0),0)
+  const raw=received-spent
+  return {
+    ...bundle,
+    summary:{
+      ...(bundle.summary||{}),
+      received,
+      spent,
+      raw_balance:raw,
+      balance:bundle.report?.is_closed?0:raw,
+      excluded_count:entries.filter(isExcluded).length
+    }
+  }
+}
 
 const inDateRange = (date, from, to) => {
   const d=String(date||'').slice(0,10)
@@ -178,6 +201,7 @@ function App(){
   const [loading,setLoading] = useState(false)
   const [error,setError] = useState('')
   const [modal,setModal] = useState(null)
+  const [entryBusy,setEntryBusy] = useState('')
   const [theme,setTheme] = useState(localStorage.getItem('apc_theme') || 'light')
   const [dateFrom,setDateFrom] = useState('')
   const [dateTo,setDateTo] = useState('')
@@ -241,18 +265,29 @@ function App(){
     finally{setLoading(false)}
   }
   async function changeEntryIncluded(entry, exclude){
-    if(!entry?.id) return
-    const kind=entry.entry_type==='credit'?'crédito':'gasto'
-    const message=exclude
-      ? `¿No considerar este ${kind} de ${money(entry.amount)} en los cálculos?\n\nEl movimiento seguirá visible y podrás restaurarlo si fue un error.`
-      : `¿Restaurar este ${kind} de ${money(entry.amount)}?\n\nVolverá a sumar o restar en los totales del reporte.`
-    if(!window.confirm(message)) return
-    setLoading(true);setError('')
+    if(!entry?.id || entryBusy) return
+    setError('')
+    setEntryBusy(entry.id)
+
+    // Cambio inmediato en pantalla: no pregunta confirmación y el usuario
+    // siempre puede revertirlo con "Volver a incluir".
+    setBundles(prev=>prev.map(bundle=>{
+      if(!bundle.entries?.some(e=>e.id===entry.id)) return bundle
+      const entries=bundle.entries.map(e=>e.id===entry.id?{...e,is_excluded:!!exclude,excluded_at:exclude?new Date().toISOString():null}:e)
+      return recalcWebSummary({...bundle,entries})
+    }))
+
     try{
       await retryCall(()=>setEntryExcluded(pin,entry.id,exclude),2)
+      // Refresca desde Supabase para dejar la vista 100% alineada con la base.
       await refreshAll()
-    }catch(e){setError(friendlyError(e))}
-    finally{setLoading(false)}
+    }catch(e){
+      setError(friendlyError(e))
+      // Si falló el guardado, recupera el estado real de Supabase.
+      try{await refreshAll()}catch{}
+    }finally{
+      setEntryBusy('')
+    }
   }
   function logout(){sessionStorage.removeItem('apc_pin');setLogged(false);setBundles([]);setPin('')}
 
@@ -292,6 +327,7 @@ function App(){
             filterControl={<MovementFilters dateFrom={dateFrom} dateTo={dateTo} setDateFrom={setDateFrom} setDateTo={setDateTo} typeFilter={typeFilter} setTypeFilter={setTypeFilter} directionFilter={directionFilter} setDirectionFilter={setDirectionFilter} active={movementFilterActive}/>}
             onEvidence={(item,kind)=>setModal({item,kind,report:current.report})}
             onEntryReview={changeEntryIncluded}
+            entryBusy={entryBusy}
           />
           {current.report.status!=='draft' && <ReviewPanel bundle={current} onReview={review}/>} 
         </>}
@@ -299,7 +335,7 @@ function App(){
         {!!pending.filter(periodHasMatches).length && <div className="past-title"><span className="eyebrow">ENVIADOS</span><h2>Pendientes de revisión o liquidación</h2><p>Estos periodos ya terminaron, pero todavía no se han marcado como cuentas liquidadas desde la APK.</p></div>}
         {pending.filter(periodHasMatches).map(b=><React.Fragment key={b.report.id}>
           <div className="section-marker pending-marker"><div className="marker-copy"><span>PERÍODO FINALIZADO</span><small>{formatDate(b.report.period_start)} – {formatDate(b.report.period_end)}</small></div><b>{statusMeta[b.report.status]?.[0]||'En revisión'}</b></div>
-          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} pending filtered={movementFilterActive} onEvidence={(item,kind)=>setModal({item,kind,report:b.report})} onEntryReview={changeEntryIncluded}/>
+          <PeriodSection bundle={{...b,entries:filterEntries(b.entries)}} pending filtered={movementFilterActive} onEvidence={(item,kind)=>setModal({item,kind,report:b.report})} onEntryReview={changeEntryIncluded} entryBusy={entryBusy}/>
           <ReviewPanel bundle={b} onReview={review}/>
         </React.Fragment>)}
 
@@ -361,7 +397,7 @@ function Login({pin,setPin,onLogin,loading,error,theme,setTheme}){
   </div></div>
 }
 
-function PeriodSection({bundle,current=false,pending=false,filtered=false,collapsible=false,filterControl=null,onEvidence,onEntryReview}){
+function PeriodSection({bundle,current=false,pending=false,filtered=false,collapsible=false,filterControl=null,onEvidence,onEntryReview,entryBusy}){
   const {report,summary,entries=[]}=bundle
   const status=statusMeta[report.status]||[report.status,'neutral']
   const period=report.period_end?`${longDate(report.period_start)} – ${longDate(report.period_end)}`:`Desde ${longDate(report.period_start)}`
@@ -379,11 +415,11 @@ function PeriodSection({bundle,current=false,pending=false,filtered=false,collap
     {!active && <div className="closure-note"><CheckCircle2 size={17}/><div><strong>Cuenta liquidada · saldo S/ 0.00</strong><span>{report.closure_note || (raw>0?'El saldo sobrante fue devuelto al finalizar el período.':raw<0?'La diferencia pendiente fue regularizada al finalizar el período.':'El período cerró sin saldo pendiente.')}</span></div></div>}
     {filtered && <div className="period-filter-note"><Filter size={14}/> Mostrando solo movimientos que coinciden con los filtros seleccionados. Los totales superiores corresponden al período completo.</div>}
 
-    {collapsible ? <details className="closed-movements-details"><summary><span><CalendarDays size={16}/> Movimientos y sustentos</span><b>{entries.length} {entries.length===1?'registro':'registros'}</b><ChevronDown size={18}/></summary><div className="closed-movements-body"><MovementTable entries={entries} onEvidence={onEvidence} allowReview={false}/></div></details> : <MovementTable entries={entries} onEvidence={onEvidence} filterControl={filterControl} allowReview={active} onEntryReview={onEntryReview}/>}
+    {collapsible ? <details className="closed-movements-details"><summary><span><CalendarDays size={16}/> Movimientos y sustentos</span><b>{entries.length} {entries.length===1?'registro':'registros'}</b><ChevronDown size={18}/></summary><div className="closed-movements-body"><MovementTable entries={entries} onEvidence={onEvidence} allowReview={false}/></div></details> : <MovementTable entries={entries} onEvidence={onEvidence} filterControl={filterControl} allowReview={active} onEntryReview={onEntryReview} entryBusy={entryBusy}/>}
   </section>
 }
 
-function MovementTable({entries,onEvidence,filterControl=null,allowReview=false,onEntryReview}){
+function MovementTable({entries,onEvidence,filterControl=null,allowReview=false,onEntryReview,entryBusy}){
   entries=sortEntriesNewestFirst(entries)
   return <>
     <div className="movements-heading">
@@ -404,7 +440,7 @@ function MovementTable({entries,onEvidence,filterControl=null,allowReview=false,
       </div>
     </div>
 
-    <div className="movement-help"><span className="movement-help-credit">+ suma al saldo</span><span className="movement-help-expense">− descuenta del saldo</span><span>Los movimientos marcados como “No considerado” permanecen visibles, pero no entran en los totales. Puedes restaurarlos en cualquier momento.</span></div>
+    <div className="movement-help"><span className="movement-help-credit">+ suma al saldo</span><span className="movement-help-expense">− descuenta del saldo</span><span>“Quitar del cálculo” no borra el movimiento: solo cambia los totales de esta web. Puedes volver a incluirlo con un toque.</span></div>
 
     <div className="desktop-movement-table">
       <div className="table-wrap movement-table-wrap spreadsheet-wrap">
@@ -418,7 +454,7 @@ function MovementTable({entries,onEvidence,filterControl=null,allowReview=false,
               <th className="col-time">Hora</th>
               <th className="right col-amount">Importe</th>
               <th className="col-support">Sustento</th>
-              {allowReview && <th className="col-review">Revisión</th>}
+              {allowReview && <th className="col-review">Cálculo</th>}
             </tr>
           </thead>
           <tbody>
@@ -438,7 +474,7 @@ function MovementTable({entries,onEvidence,filterControl=null,allowReview=false,
                 <td data-label="Hora" className="movement-time-cell"><span className="table-time">{cleanText(e.issue_time)||'—'}</span></td>
                 <td data-label="Importe" className={`right amount ${e.entry_type} movement-amount-cell`}><span className="amount-box"><b>{isCredit?'+':'−'}{money(e.amount)}</b></span></td>
                 <td data-label="Sustento" className="movement-support-cell"><SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/></td>
-                {allowReview && <td data-label="Revisión" className="movement-review-cell"><EntryReviewControl item={e} onChange={onEntryReview}/></td>}
+                {allowReview && <td data-label="Cálculo" className="movement-review-cell"><EntryReviewControl item={e} onChange={onEntryReview} busy={entryBusy===e.id}/></td>}
               </tr>
             })}
           </tbody>
@@ -478,8 +514,8 @@ function MovementTable({entries,onEvidence,filterControl=null,allowReview=false,
             <SupportCell item={e} onOpen={(kind)=>onEvidence(e,kind)}/>
           </div>
           {allowReview && <div className="mobile-card-review">
-            <span className="mobile-field-label">Revisión</span>
-            <EntryReviewControl item={e} onChange={onEntryReview} mobile/>
+            <span className="mobile-field-label">Cálculo del reporte</span>
+            <EntryReviewControl item={e} onChange={onEntryReview} mobile busy={entryBusy===e.id}/>
           </div>}
         </article>
       })}
@@ -487,14 +523,14 @@ function MovementTable({entries,onEvidence,filterControl=null,allowReview=false,
   </>
 }
 
-function EntryReviewControl({item,onChange,mobile=false}){
+function EntryReviewControl({item,onChange,mobile=false,busy=false}){
   const excluded=isExcluded(item)
   if(excluded) return <div className={`entry-review-control excluded ${mobile?'mobile':''}`}>
-    <span className="entry-review-state"><CircleAlert size={13}/> No considerado</span>
-    <button type="button" className="entry-review-action restore" onClick={()=>onChange?.(item,false)}><RotateCcw size={13}/> Restaurar</button>
+    <span className="entry-review-state"><CircleAlert size={13}/> Fuera del cálculo</span>
+    <button type="button" disabled={busy} className="entry-review-button restore" onClick={()=>onChange?.(item,false)}><RotateCcw size={14}/> {busy?'Guardando…':'Volver a incluir'}</button>
   </div>
   return <div className={`entry-review-control ${mobile?'mobile':''}`}>
-    <button type="button" className="entry-review-action exclude" onClick={()=>onChange?.(item,true)}><X size={13}/> No considerar</button>
+    <button type="button" disabled={busy} className="entry-review-button exclude" onClick={()=>onChange?.(item,true)}><X size={14}/> {busy?'Guardando…':'Quitar del cálculo'}</button>
   </div>
 }
 
@@ -657,7 +693,7 @@ async function downloadAllPdf(bundles){
     const labels=['RECIBIDO','GASTADO',r.is_closed?'AJUSTE DE CIERRE':'SALDO'];const vals=[money(s.received),money(s.spent),money(r.is_closed?Math.abs(raw):s.balance)]
     labels.forEach((x,i)=>{const x0=12+i*62;doc.setFillColor(233,243,250);doc.roundedRect(x0,50,58,21,3,3,'F');doc.setTextColor(70,85,96);doc.setFontSize(7);doc.text(x,x0+4,57);doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...(i===0?green:i===1?orange:navy));doc.text(vals[i],x0+4,67)})
     if(r.is_closed){doc.setTextColor(...green);doc.setFontSize(8);doc.text(`CUENTA LIQUIDADA · Saldo pendiente actual: S/ 0.00`,12,78)}
-    autoTable(doc,{startY:r.is_closed?83:78,head:[['Fecha','Tipo','Detalle','Monto','Sustento']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e)+(cleanText(e.issue_time)?` · ${cleanText(e.issue_time)}`:''),(e.entry_type==='credit'?'+':'−')+money(e.amount),supportExportLabel(e)]),headStyles:{fillColor:navy},styles:{fontSize:7,cellPadding:2},columnStyles:{3:{halign:'right'}}})
+    autoTable(doc,{startY:r.is_closed?83:78,head:[['Fecha','Tipo','Detalle','Monto','Sustento','Cálculo']],body:entries.map(e=>[formatDate(e.entry_date),e.entry_type==='credit'?'Crédito':'Gasto',movementDetail(e)+(cleanText(e.issue_time)?` · ${cleanText(e.issue_time)}`:''),(e.entry_type==='credit'?'+':'−')+money(e.amount),supportExportLabel(e),isExcluded(e)?'Fuera del cálculo':'Incluido']),headStyles:{fillColor:navy},styles:{fontSize:6.7,cellPadding:1.8},columnStyles:{3:{halign:'right'},5:{cellWidth:24}}})
   }
   for(const b of bundles){
     for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){
@@ -711,13 +747,13 @@ async function downloadAllExcel(bundles){
   const [excelMod, saverMod] = await Promise.all([import('exceljs'), import('file-saver')])
   const ExcelJS = excelMod.default || excelMod
   const saveAs = saverMod.saveAs || saverMod.default
-  const wb=new ExcelJS.Workbook();wb.creator='APC Corporacion';const ws=wb.addWorksheet('Reporte',{views:[{showGridLines:false}]});ws.columns=[{width:15},{width:14},{width:42},{width:16},{width:23}]
+  const wb=new ExcelJS.Workbook();wb.creator='APC Corporacion';const ws=wb.addWorksheet('Reporte',{views:[{showGridLines:false}]});ws.columns=[{width:15},{width:14},{width:38},{width:16},{width:23},{width:20}]
   const border={top:{style:'thin',color:{argb:'FFC7D0D8'}},bottom:{style:'thin',color:{argb:'FFC7D0D8'}},left:{style:'thin',color:{argb:'FFC7D0D8'}},right:{style:'thin',color:{argb:'FFC7D0D8'}}};let row=1
-  for(const b of bundles){const r=b.report,s=b.summary,entries=b.entries||[],raw=Number(s.raw_balance??(s.received-s.spent));ws.mergeCells(row,1,row,5);let c=ws.getCell(row,1);c.value=r.is_closed?`CUENTA LIQUIDADA · ${periodTitle(b)}`:r.period_end?`REPORTE ENVIADO · ${periodTitle(b)}`:`REPORTE ACTUAL · ${periodTitle(b)}`;c.font={bold:true,color:{argb:'FFFFFFFF'},size:14};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};c.alignment={horizontal:'center'};row++
-    ws.getRow(row).values=['Recibido',Number(s.received),'Gastado',Number(s.spent),r.is_closed?`Saldo liquidado S/ 0.00`:`Saldo ${money(s.balance)}`];ws.getRow(row).eachCell(x=>{x.border=border;x.alignment={vertical:'middle'}});ws.getCell(row,2).numFmt='"S/ "#,##0.00';ws.getCell(row,4).numFmt='"S/ "#,##0.00';row++
-    if(r.is_closed){ws.mergeCells(row,1,row,5);ws.getCell(row,1).value=(raw>0?`Devolución al cierre: ${money(Math.abs(raw))}`:raw<0?`Regularización al cierre: ${money(Math.abs(raw))}`:'Sin ajuste de cierre')+' · Cuenta liquidada';ws.getCell(row,1).font={bold:true,color:{argb:'FF116B5A'}};row++}
-    const head=ws.getRow(row);head.values=['Fecha','Tipo','Detalle','Monto','Sustento'];head.eachCell(x=>{x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};x.border=border;x.alignment={horizontal:'center'}});row++
-    entries.forEach(e=>{const rr=ws.getRow(row);rr.values=[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(cleanText(e.issue_time)?` · Hora ${cleanText(e.issue_time)}`:''),Number(e.amount),supportExportLabel(e).toUpperCase()];rr.eachCell(x=>{x.border=border;x.alignment={vertical:'middle',wrapText:true}});rr.getCell(4).numFmt='"S/ "#,##0.00';row++});row+=2}
+  for(const b of bundles){const r=b.report,s=b.summary,entries=b.entries||[],raw=Number(s.raw_balance??(s.received-s.spent));ws.mergeCells(row,1,row,6);let c=ws.getCell(row,1);c.value=r.is_closed?`CUENTA LIQUIDADA · ${periodTitle(b)}`:r.period_end?`REPORTE ENVIADO · ${periodTitle(b)}`:`REPORTE ACTUAL · ${periodTitle(b)}`;c.font={bold:true,color:{argb:'FFFFFFFF'},size:14};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};c.alignment={horizontal:'center'};row++
+    ws.getRow(row).values=['Recibido',Number(s.received),'Gastado',Number(s.spent),r.is_closed?`Saldo liquidado S/ 0.00`:`Saldo ${money(s.balance)}`,''];ws.getRow(row).eachCell(x=>{x.border=border;x.alignment={vertical:'middle'}});ws.getCell(row,2).numFmt='"S/ "#,##0.00';ws.getCell(row,4).numFmt='"S/ "#,##0.00';row++
+    if(r.is_closed){ws.mergeCells(row,1,row,6);ws.getCell(row,1).value=(raw>0?`Devolución al cierre: ${money(Math.abs(raw))}`:raw<0?`Regularización al cierre: ${money(Math.abs(raw))}`:'Sin ajuste de cierre')+' · Cuenta liquidada';ws.getCell(row,1).font={bold:true,color:{argb:'FF116B5A'}};row++}
+    const head=ws.getRow(row);head.values=['Fecha','Tipo','Detalle','Monto','Sustento','Cálculo'];head.eachCell(x=>{x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17324D'}};x.border=border;x.alignment={horizontal:'center'}});row++
+    entries.forEach(e=>{const rr=ws.getRow(row);rr.values=[formatDate(e.entry_date),e.entry_type==='credit'?'CRÉDITO':'GASTO',movementDetail(e)+(cleanText(e.issue_time)?` · Hora ${cleanText(e.issue_time)}`:''),Number(e.amount),supportExportLabel(e).toUpperCase(),isExcluded(e)?'FUERA DEL CÁLCULO':'INCLUIDO'];rr.eachCell(x=>{x.border=border;x.alignment={vertical:'middle',wrapText:true}});rr.getCell(4).numFmt='"S/ "#,##0.00';row++});row+=2}
   const ev=wb.addWorksheet('Evidencias',{views:[{showGridLines:false}]});ev.columns=Array.from({length:8},()=>({width:15}));let er=1
   for(const b of bundles){for(const e of b.entries.filter(v=>v.entry_type==='expense'&&canOpenSupport(v))){const kind=supportKind(e);const data=await entryImageData(e).catch(()=>null);ev.mergeCells(er,1,er,8);let c=ev.getCell(er,1);c.value=`${kind==='declaration'?'DECLARACIÓN JURADA':'BOLETA'} · ${formatDate(e.entry_date)} · ${money(e.amount)} · ${movementDetail(e)}${kind==='receipt'?` · ${receiptDeliveryText(e).toUpperCase()}`:''}`;c.font={bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:kind==='declaration'?'FF17324D':'FF19856F'}};c.alignment={horizontal:'center'};er++
       if(data){try{const m=String(data).match(/^data:image\/(png|jpeg|jpg);base64,(.*)$/i);if(m){const id=wb.addImage({base64:m[2],extension:m[1].toLowerCase()==='png'?'png':'jpeg'});ev.addImage(id,{tl:{col:1,row:er-1},ext:{width:430,height:570}});er+=31}}catch{er+=2}}else{ev.mergeCells(er,1,er+4,8);ev.getCell(er,1).value=declarationText(e,b.report);ev.getCell(er,1).alignment={wrapText:true,vertical:'middle'};er+=6}er+=2}}

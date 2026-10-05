@@ -36,7 +36,7 @@ export async function reviewReport(pin, reportId, action, note, reviewedBy) {
 }
 
 export async function setEntryExcluded(pin, entryId, excluded) {
-  const { data, error } = await supabase.rpc('apc_set_entry_excluded', {
+  const { data, error } = await supabase.rpc('apc_web_set_entry_excluded', {
     p_pin: pin,
     p_entry_id: entryId,
     p_excluded: !!excluded

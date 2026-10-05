@@ -1,34 +1,22 @@
-# APC Transporte Web v1.20 · Sustento limpio
+# APC Transporte Web v1.23 — revisión final
 
-- Un solo sustento por gasto: **boleta o declaración jurada**.
-- Si hay boleta, la declaración se oculta automáticamente.
-- La columna **Sustento** es más limpia y profesional.
-- PDF/Excel usan la misma regla.
-- No requiere SQL ni cambios en la APK.
+Esta versión deja la revisión de movimientos como una función exclusiva de la web.
 
-## v1.13 · Tabla de movimientos más amigable
+## Cambios
 
-- Reorganiza la tabla para que un usuario común entienda rápidamente qué ocurrió, cuánto dinero entró o salió y qué comprobante existe.
-- Reduce las columnas a Fecha, Qué se registró, Importe y Comprobante / entrega.
-- En móvil cada registro se muestra como una tarjeta clara y ordenada.
+- Botón visible **Quitar del cálculo** en gastos y créditos del período abierto/finalizado.
+- Sin cuadro de confirmación: el cambio se aplica directamente.
+- Si se toca por error aparece **Volver a incluir**.
+- El movimiento nunca se elimina; queda visible como **Fuera del cálculo**.
+- Los totales de la web se recalculan automáticamente.
+- Los períodos liquidados no se pueden modificar.
+- La columna **Detalle / ruta** se redujo ligeramente para dar espacio al control de cálculo.
+- PDF y Excel descargados desde la web indican si un movimiento quedó fuera del cálculo.
+- La APK no necesita actualización y sus funciones `apc_owner_*` / `apc_sync_report` no se modifican.
+- El SQL fuerza una recarga del schema cache de Supabase/PostgREST para corregir el error de función no encontrada.
 
-# APC Transporte Web v1.9
+## Orden correcto
 
-Actualización enfocada en hacer el filtro de fechas más fácil de encontrar y usar.
-
-## Novedades
-- El filtro por fecha ahora está dentro del bloque **Movimientos / Detalle de transporte**.
-- Ya no ocupa una tarjeta completa encima del período actual.
-- Los campos de fecha se abren al tocar el campo completo o el botón visible **Elegir**.
-- Accesos rápidos: **Hoy**, **Últimos 7 días**, **Este mes** y **Ver todo**.
-- El filtro continúa aplicándose al reporte actual y a períodos anteriores.
-- Si se filtra una fecha antigua, el período actual no desaparece: el administrador conserva siempre los controles del filtro.
-- Ajustes responsivos para PC, tablet y móvil.
-
-No requiere ejecutar SQL nuevo ni actualizar la APK.
-
-
-## v1.12 · Estado de entrega de boletas
-La columna Sustento muestra, solo para boletas, **Entregada** o **Pendiente de entregar**. El estado lo cambia el trabajador desde la APK v2.0 y se refleja al sincronizar.
-
-Antes de usar esta versión junto con la APK v2.0, ejecuta `ACTUALIZAR_SUPABASE_v1.8_BOLETAS_ENTREGADAS.sql` en Supabase.
+1. En Supabase > SQL Editor ejecuta `ACTUALIZAR_SUPABASE_v1.23_REVISION_WEB.sql`.
+2. Ejecuta `ACTUALIZAR_WEB_V1.23.ps1`.
+3. Espera 1–3 minutos y recarga GitHub Pages con Ctrl+F5.
