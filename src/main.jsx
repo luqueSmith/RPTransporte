@@ -530,7 +530,7 @@ function EntryReviewControl({item,onChange,mobile=false,busy=false}){
     <button type="button" disabled={busy} className="entry-review-button restore" onClick={()=>onChange?.(item,false)}><RotateCcw size={14}/> {busy?'Guardando…':'Volver a incluir'}</button>
   </div>
   return <div className={`entry-review-control ${mobile?'mobile':''}`}>
-    <button type="button" disabled={busy} className="entry-review-button exclude" onClick={()=>onChange?.(item,true)}><X size={14}/> {busy?'Guardando…':'No Reconozco'}</button>
+    <button type="button" disabled={busy} className="entry-review-button exclude" onClick={()=>onChange?.(item,true)}><X size={14}/> {busy?'Guardando…':'NO ACEPTADA'}</button>
   </div>
 }
 
